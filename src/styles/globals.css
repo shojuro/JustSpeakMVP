@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Primary Colors */
+  --primary: #2563EB;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  
+  /* Text Colors */
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  
+  /* Background Colors */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F9FAFB;
+  --bg-ai: #EFF6FF;
+  --bg-user: #FFFFFF;
+  
+  /* Border Colors */
+  --border-light: #E5E7EB;
+  --border-medium: #D1D5DB;
+  
+  /* Shadow */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-primary: #F9FAFB;
+    --text-secondary: #D1D5DB;
+    --bg-primary: #111827;
+    --bg-secondary: #1F2937;
+    --bg-ai: #1E3A8A;
+    --border-light: #374151;
+    --border-medium: #4B5563;
+  }
+}
+
+/* Base Styles */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-bg-secondary text-text-primary;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Custom Components */
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white font-semibold py-3 px-6 rounded-lg 
+           hover:bg-blue-700 active:scale-95 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-primary font-medium py-3 px-6 rounded-lg 
+           border border-border-medium hover:bg-gray-50 
+           active:scale-95 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+
+  .chat-bubble-ai {
+    @apply bg-bg-ai text-text-primary border border-border-light 
+           rounded-t-2xl rounded-br-2xl rounded-bl-sm
+           py-3 px-4 mb-2 max-w-[80%];
+  }
+
+  .chat-bubble-user {
+    @apply bg-white text-text-primary border border-border-medium 
+           rounded-t-2xl rounded-bl-2xl rounded-br-sm
+           py-3 px-4 mb-2 ml-auto max-w-[80%];
+  }
+
+  .speaking-indicator {
+    @apply text-warning animate-pulse-soft;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2 border border-border-medium rounded-lg
+           focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+           placeholder:text-text-muted;
+  }
+}
+
+/* Utilities */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
