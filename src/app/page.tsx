@@ -1,4 +1,11 @@
+'use client'
+
+import Link from 'next/link'
+import { useAuth } from '@/components/providers/AuthProvider'
+
 export default function HomePage() {
+  const { user } = useAuth()
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-bg-secondary to-white">
       <div className="container mx-auto px-4 py-16">
@@ -11,12 +18,20 @@ export default function HomePage() {
             Track your speaking time and build confidence one conversation at a time.
           </p>
           <div className="flex gap-4 justify-center">
-            <button className="btn-primary">
-              Start Speaking Now
-            </button>
-            <button className="btn-secondary">
-              Learn More
-            </button>
+            {user ? (
+              <Link href="/chat" className="btn-primary">
+                Continue Practicing
+              </Link>
+            ) : (
+              <>
+                <Link href="/auth/signup" className="btn-primary">
+                  Start Speaking Now
+                </Link>
+                <Link href="/auth/login" className="btn-secondary">
+                  Sign In
+                </Link>
+              </>
+            )}
           </div>
           
           <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
