@@ -6,3 +6,13 @@ coverage
 .vercel
 *.min.js
 *.min.css
+dist
+.husky
+public
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+*.log
+.DS_Store
+.env*
+!.env.example

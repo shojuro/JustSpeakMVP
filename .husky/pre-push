@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Skip in CI environment
+if [ -n "$CI" ]; then
+  exit 0
+fi
+
+echo "🔍 Running type checks before push..."
+npm run typecheck
+
+if [ $? -ne 0 ]; then
+  echo "❌ Type checking failed! Please fix TypeScript errors before pushing."
+  exit 1
+fi
+
+echo "✅ Type checks passed!"

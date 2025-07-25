@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Skip heavy checks in CI environment
+if [ "$CI" = "true" ]; then
+  echo "Skipping pre-commit hooks in CI environment"
+  exit 0
+fi
+
+# Run lint-staged for fast, targeted checks
+npx lint-staged
