@@ -11,14 +11,11 @@ export async function POST(request: NextRequest) {
     const { message, sessionId, userId } = await request.json()
 
     if (!message || !sessionId) {
-      return NextResponse.json(
-        { error: 'Message and sessionId are required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Message and sessionId are required' }, { status: 400 })
     }
 
     // Verify user owns the session
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
       .select('user_id')
@@ -26,10 +23,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (sessionError || !session || session.user_id !== userId) {
-      return NextResponse.json(
-        { error: 'Invalid session' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Invalid session' }, { status: 403 })
     }
 
     // Get conversation history for context (last 10 messages)
@@ -52,16 +46,16 @@ Your role is to:
 - Adapt to the user's English level
 - Be encouraging and supportive
 - Keep responses concise (2-3 sentences usually)
-- Focus on helping them practice speaking, not teaching grammar rules`
-      }
+- Focus on helping them practice speaking, not teaching grammar rules`,
+      },
     ]
 
     // Add conversation history (reversed to get chronological order)
     if (history) {
-      history.reverse().forEach(msg => {
+      history.reverse().forEach((msg) => {
         messages.push({
           role: msg.speaker === 'USER' ? 'user' : 'assistant',
-          content: msg.content
+          content: msg.content,
         })
       })
     }
@@ -79,36 +73,31 @@ Your role is to:
       frequency_penalty: 0.3,
     })
 
-    const aiResponse = completion.choices[0]?.message?.content || 
+    const aiResponse =
+      completion.choices[0]?.message?.content ||
       "I'm sorry, I didn't catch that. Could you please repeat?"
 
     // Save both messages to database
-    const { error: insertError } = await supabase
-      .from('messages')
-      .insert([
-        {
-          session_id: sessionId,
-          speaker: 'USER',
-          content: message,
-        },
-        {
-          session_id: sessionId,
-          speaker: 'AI',
-          content: aiResponse,
-        }
-      ])
+    const { error: insertError } = await supabase.from('messages').insert([
+      {
+        session_id: sessionId,
+        speaker: 'USER',
+        content: message,
+      },
+      {
+        session_id: sessionId,
+        speaker: 'AI',
+        content: aiResponse,
+      },
+    ])
 
     if (insertError) {
       console.error('Error saving messages:', insertError)
     }
 
     return NextResponse.json({ message: aiResponse })
-
   } catch (error) {
     console.error('Chat API error:', error)
-    return NextResponse.json(
-      { error: 'Failed to process chat message' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to process chat message' }, { status: 500 })
   }
 }
