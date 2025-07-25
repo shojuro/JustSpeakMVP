@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
+import { isClockSkewError } from '@/lib/clockSkew'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
@@ -33,12 +34,18 @@ export default function AuthCallbackPage() {
         }
       } catch (err) {
         console.error('Auth callback error:', err)
-        setError(err instanceof Error ? err.message : 'An error occurred during authentication')
         
-        // Redirect to login after 3 seconds
+        if (isClockSkewError(err)) {
+          setError('Your device clock appears to be incorrect. Please fix your system time settings and try again.')
+        } else {
+          setError(err instanceof Error ? err.message : 'An error occurred during authentication')
+        }
+        
+        // Redirect to login after 5 seconds for clock skew, 3 for other errors
+        const delay = isClockSkewError(err) ? 5000 : 3000
         setTimeout(() => {
           router.push('/auth/login')
-        }, 3000)
+        }, delay)
       }
     }
 
@@ -46,12 +53,27 @@ export default function AuthCallbackPage() {
   }, [router])
 
   if (error) {
+    const isClockError = error.includes('clock appears to be incorrect')
+    
     return (
       <main className="min-h-screen bg-gradient-to-b from-bg-secondary to-white flex items-center justify-center px-4">
         <div className="text-center max-w-md">
-          <div className="text-5xl mb-4">❌</div>
-          <h2 className="text-xl font-semibold text-text-primary mb-2">Authentication Error</h2>
+          <div className="text-5xl mb-4">{isClockError ? '🕐' : '❌'}</div>
+          <h2 className="text-xl font-semibold text-text-primary mb-2">
+            {isClockError ? 'System Time Issue' : 'Authentication Error'}
+          </h2>
           <p className="text-text-secondary mb-4">{error}</p>
+          {isClockError && (
+            <div className="text-sm text-text-secondary mb-4 text-left bg-amber-50 p-4 rounded-lg">
+              <p className="font-medium mb-2">To fix this issue:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Open your device settings</li>
+                <li>Go to Date & Time settings</li>
+                <li>Enable "Set time automatically"</li>
+                <li>Restart your browser and try again</li>
+              </ol>
+            </div>
+          )}
           <p className="text-sm text-text-muted">Redirecting to login...</p>
         </div>
       </main>

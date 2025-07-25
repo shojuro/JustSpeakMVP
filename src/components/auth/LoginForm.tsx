@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { isClockSkewError } from '@/lib/clockSkew'
 import Link from 'next/link'
 
 export default function LoginForm() {
@@ -26,13 +27,17 @@ export default function LoginForm() {
       const { error } = await signIn(email, password)
       if (error) {
         // Handle specific error cases
-        if (error.message.includes('Email not confirmed')) {
+        if (isClockSkewError(error)) {
+          setError('Your device clock appears to be incorrect. Please check your Date & Time settings and ensure "Set time automatically" is enabled, then try again.')
+        } else if (error.message.includes('Email not confirmed')) {
           setError('Please check your email and confirm your account before logging in.')
           setShowResendConfirmation(true)
         } else if (error.message.includes('Invalid login credentials')) {
           setError('Invalid email or password. Please try again.')
         } else if (error.message.includes('User not found')) {
           setError('No account found with this email. Please sign up first.')
+        } else if (error.message.includes('clock appears to be incorrect')) {
+          setError(error.message)
         } else {
           setError(error.message)
         }
