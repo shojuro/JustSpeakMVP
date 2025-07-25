@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function LoginForm() {
   const { signIn } = useAuth()
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +37,13 @@ export default function LoginForm() {
           setError(error.message)
         }
         console.error('Login error:', error)
+      } else {
+        // Success - add additional navigation attempt
+        console.log('Login successful, attempting navigation...')
+        // Give auth state time to update
+        setTimeout(() => {
+          router.push('/chat')
+        }, 500)
       }
     } catch (err) {
       console.error('Unexpected login error:', err)

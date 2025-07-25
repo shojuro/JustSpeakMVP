@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email ?? 'No session')
       setUser(session?.user ?? null)
       setLoading(false)
     })
@@ -36,9 +37,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for changes on auth state (logged in, signed out, etc.)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email)
       setUser(session?.user ?? null)
       setLoading(false)
+      
+      // If just signed in and on login page, redirect to chat
+      if (event === 'SIGNED_IN' && window.location.pathname === '/auth/login') {
+        console.log('User signed in on login page, redirecting to chat')
+        router.push('/chat')
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -64,16 +72,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('Starting sign in process...')
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Sign in error:', error)
+        throw error
+      }
 
-      router.push('/chat')
+      if (data.session) {
+        console.log('Sign in successful, session created')
+        // Force a session refresh to ensure auth state is updated
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (session) {
+          console.log('Session confirmed, navigating to chat...')
+          // Use setTimeout to ensure state updates have propagated
+          setTimeout(() => {
+            router.push('/chat')
+            // Fallback to window.location if router.push doesn't work
+            setTimeout(() => {
+              if (window.location.pathname !== '/chat') {
+                console.log('Router push failed, using window.location')
+                window.location.href = '/chat'
+              }
+            }, 1000)
+          }, 100)
+        }
+      }
+
       return { error: null }
     } catch (error) {
+      console.error('Sign in exception:', error)
       return { error: error as Error }
     }
   }

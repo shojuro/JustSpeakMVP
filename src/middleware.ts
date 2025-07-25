@@ -68,6 +68,8 @@ export async function middleware(request: NextRequest) {
   if (error) {
     console.error('Middleware auth error:', error)
   }
+  
+  console.log(`Middleware: ${request.nextUrl.pathname}, authenticated: ${!!session}`)
 
   // Protected routes
   if (request.nextUrl.pathname.startsWith('/chat')) {
