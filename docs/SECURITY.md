@@ -4,6 +4,24 @@
 
 Just Speak MVP is built with security as a primary concern. This document outlines our security measures and best practices.
 
+## ⚠️ Security Best Practices for Developers
+
+### Environment Variables and Secrets Management
+
+**CRITICAL**: Never commit real API keys, passwords, or secrets to version control!
+
+1. **Use `.env` files for local development** - These are gitignored and safe for secrets
+2. **Use `.env.example` for structure only** - Only contains placeholder values
+3. **Rotate credentials immediately if exposed** - Even if accidentally committed locally
+4. **Use strong, unique secrets** - Generate random strings for JWT secrets and encryption keys
+
+### What to do if credentials are exposed:
+1. **Immediately revoke/regenerate all exposed credentials**
+2. **Update your local `.env` file with new credentials**
+3. **Check Git history to ensure secrets weren't committed**
+4. **If committed, clean Git history before pushing**
+5. **Notify the team of the security incident**
+
 ## 🛡️ Security Features
 
 ### Authentication & Authorization
