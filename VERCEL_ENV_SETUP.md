@@ -2,10 +2,15 @@
 
 ## Quick Fix for Deployment Errors
 
-### Error 1: "No Next.js version detected"
-This error can occur if Vercel is not looking in the correct directory. Since your repository root is already the Next.js application directory, ensure that:
-1. In Vercel Dashboard, the "Root Directory" setting is empty or set to "./"
-2. The repository is connected correctly (not pointing to a parent directory)
+### Error 1: "No Next.js version detected" / "Couldn't find any `pages` or `app` directory"
+This error occurs because the Next.js application is in the `justspeakmvp` subdirectory of the GitHub repository. 
+
+**Solution**: In Vercel Dashboard, you MUST set the Root Directory:
+1. Go to your project's Settings → General
+2. Find "Root Directory" setting
+3. Set it to: `justspeakmvp`
+4. Click "Save"
+5. Redeploy the project
 
 ### Error 2: "Environment Variable references Secret which does not exist"
 This occurs because Vercel is looking for secrets that haven't been created yet.
@@ -79,16 +84,16 @@ After adding all environment variables:
 **Important**: When importing this repository to Vercel:
 
 1. **GitHub Repository Selection**:
-   - Make sure you're selecting the correct repository path
-   - If your repo shows as `username/JustSpeakMVP/justspeakmvp`, select `username/JustSpeakMVP`
-   - The repository root should already contain the Next.js app
+   - Select the repository `username/JustSpeakMVP`
+   - The Next.js app is in the `justspeakmvp` subdirectory
 
-2. **Root Directory Setting**:
-   - Leave the "Root Directory" field empty or set to "./"
-   - Do NOT set it to "justspeakmvp" if that's already your repo root
+2. **Root Directory Setting** (CRITICAL):
+   - You MUST set "Root Directory" to: `justspeakmvp`
+   - This tells Vercel where to find the Next.js application
+   - Without this, you'll get "Couldn't find any `pages` or `app` directory" error
 
 3. **Framework Preset**:
-   - Vercel should auto-detect "Next.js"
+   - After setting the root directory, Vercel should auto-detect "Next.js"
    - If not, manually select it
 
 ## Troubleshooting
