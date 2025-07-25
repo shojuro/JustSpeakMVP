@@ -1,0 +1,66 @@
+name: Reusable Code Quality Checks
+
+on:
+  workflow_call:
+    inputs:
+      run-prettier:
+        description: 'Run Prettier format check'
+        required: false
+        type: boolean
+        default: true
+      run-eslint:
+        description: 'Run ESLint'
+        required: false
+        type: boolean
+        default: true
+      run-typecheck:
+        description: 'Run TypeScript type checking'
+        required: false
+        type: boolean
+        default: true
+      eslint-max-warnings:
+        description: 'Maximum ESLint warnings allowed'
+        required: false
+        type: number
+        default: 0
+
+jobs:
+  quality-checks:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        id: cache-deps
+        with:
+          path: |
+            node_modules
+            ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Check formatting with Prettier
+        if: ${{ inputs.run-prettier }}
+        run: npm run format:check
+
+      - name: Run ESLint
+        if: ${{ inputs.run-eslint }}
+        run: npm run lint -- --max-warnings=${{ inputs.eslint-max-warnings }}
+
+      - name: Run TypeScript type checking
+        if: ${{ inputs.run-typecheck }}
+        run: npm run typecheck

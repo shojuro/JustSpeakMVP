@@ -1,0 +1,53 @@
+name: Reusable Node.js Setup
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: 'Node.js version to use'
+        required: false
+        type: string
+        default: '20'
+      install-deps:
+        description: 'Whether to install dependencies'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  setup:
+    name: Setup Node.js Environment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+
+      - name: Cache dependencies
+        if: ${{ inputs.install-deps }}
+        uses: actions/cache@v4
+        id: cache-deps
+        with:
+          path: |
+            node_modules
+            ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        if: ${{ inputs.install-deps && steps.cache-deps.outputs.cache-hit != 'true' }}
+        run: npm ci
+
+      - name: Upload node_modules
+        if: ${{ inputs.install-deps }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-modules-${{ inputs.node-version }}
+          path: node_modules
+          retention-days: 1
