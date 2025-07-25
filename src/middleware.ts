@@ -2,6 +2,15 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // Skip middleware for static assets and api routes
+  if (
+    request.nextUrl.pathname.startsWith('/_next') ||
+    request.nextUrl.pathname.startsWith('/api') ||
+    request.nextUrl.pathname.includes('.')
+  ) {
+    return NextResponse.next()
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -54,21 +63,37 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { session }, error } = await supabase.auth.getSession()
+  
+  if (error) {
+    console.error('Middleware auth error:', error)
+  }
 
   // Protected routes
   if (request.nextUrl.pathname.startsWith('/chat')) {
     if (!session) {
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+      const redirectUrl = new URL('/auth/login', request.url)
+      redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname)
+      return NextResponse.redirect(redirectUrl)
     }
   }
 
-  // Redirect to chat if already logged in
+  // Auth pages behavior when logged in
   if (session && (
     request.nextUrl.pathname === '/auth/login' ||
     request.nextUrl.pathname === '/auth/signup'
   )) {
+    // Check if there's a redirect URL
+    const redirectTo = request.nextUrl.searchParams.get('redirectTo')
+    if (redirectTo && redirectTo.startsWith('/')) {
+      return NextResponse.redirect(new URL(redirectTo, request.url))
+    }
     return NextResponse.redirect(new URL('/chat', request.url))
+  }
+
+  // Allow access to auth debug page regardless of auth status
+  if (request.nextUrl.pathname === '/auth/debug') {
+    return response
   }
 
   return response

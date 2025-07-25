@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
+import { supabase } from '@/lib/supabase/client'
 import Link from 'next/link'
 
 export default function LoginForm() {
@@ -10,6 +11,9 @@ export default function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showResendConfirmation, setShowResendConfirmation] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -19,12 +23,49 @@ export default function LoginForm() {
     try {
       const { error } = await signIn(email, password)
       if (error) {
-        setError(error.message)
+        // Handle specific error cases
+        if (error.message.includes('Email not confirmed')) {
+          setError('Please check your email and confirm your account before logging in.')
+          setShowResendConfirmation(true)
+        } else if (error.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please try again.')
+        } else if (error.message.includes('User not found')) {
+          setError('No account found with this email. Please sign up first.')
+        } else {
+          setError(error.message)
+        }
+        console.error('Login error:', error)
       }
     } catch (err) {
-      setError('An unexpected error occurred')
+      console.error('Unexpected login error:', err)
+      setError('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendConfirmation = async () => {
+    setResendLoading(true)
+    setResendSuccess(false)
+    
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        }
+      })
+      
+      if (error) throw error
+      
+      setResendSuccess(true)
+      setError(null)
+      setShowResendConfirmation(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resend confirmation email')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -38,6 +79,24 @@ export default function LoginForm() {
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
             <p className="text-sm text-error">{error}</p>
+            {showResendConfirmation && (
+              <button
+                type="button"
+                onClick={handleResendConfirmation}
+                disabled={resendLoading}
+                className="mt-2 text-sm text-primary hover:text-blue-700 underline"
+              >
+                {resendLoading ? 'Sending...' : 'Resend confirmation email'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {resendSuccess && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-sm text-green-700">
+              Confirmation email sent! Please check your inbox and click the link to confirm your account.
+            </p>
           </div>
         )}
 
