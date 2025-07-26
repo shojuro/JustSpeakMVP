@@ -37,7 +37,7 @@ export default function AuthDebugPage() {
         
         if (session) {
           addLog(`User email: ${session.user.email}`)
-          addLog(`Session expires: ${new Date(session.expires_at * 1000).toLocaleString()}`)
+          addLog(`Session expires: ${session.expires_at ? new Date(session.expires_at * 1000).toLocaleString() : 'Unknown'}`)
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to get session')
@@ -168,7 +168,7 @@ export default function AuthDebugPage() {
                 <div>
                   <span className="text-text-secondary">Expires at:</span>{' '}
                   <span className="font-mono">
-                    {new Date(session.expires_at * 1000).toLocaleString()}
+                    {session.expires_at ? new Date(session.expires_at * 1000).toLocaleString() : 'Unknown'}
                   </span>
                 </div>
                 <div>
