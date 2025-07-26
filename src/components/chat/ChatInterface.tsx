@@ -3,13 +3,18 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
+import Link from 'next/link'
 import MessageBubble from './MessageBubble'
 import SpeakButton from './SpeakButton'
 import SpeakingTimer from './SpeakingTimer'
 import { useSpeechRecording } from '@/hooks/useSpeechRecording'
 import type { Message, Session } from '@/types/chat'
 
-export default function ChatInterface() {
+interface ChatInterfaceProps {
+  isAnonymous?: boolean
+}
+
+export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProps) {
   const { user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [session, setSession] = useState<Session | null>(null)
@@ -36,14 +41,14 @@ export default function ChatInterface() {
 
   // Create or get session on mount
   useEffect(() => {
-    if (user) {
+    if (user && !isAnonymous) {
       createOrGetSession()
     }
-  }, [user])
+  }, [user, isAnonymous])
 
   // Handle transcript updates
   useEffect(() => {
-    if (transcript && !isRecording && session) {
+    if (transcript && !isRecording) {
       handleSendMessage(transcript)
     }
   }, [transcript, isRecording])
@@ -102,12 +107,13 @@ export default function ChatInterface() {
   }
 
   const handleSendMessage = async (text: string) => {
-    if (!session || !text.trim() || isLoading) return
+    if (!text.trim() || isLoading) return
+    if (!isAnonymous && !session) return // Only require session for authenticated users
 
     setIsLoading(true)
     const userMessage: Message = {
       id: crypto.randomUUID(),
-      session_id: session.id,
+      session_id: session?.id || 'anonymous',
       speaker: 'USER',
       content: text,
       duration: duration,
@@ -130,8 +136,9 @@ export default function ChatInterface() {
         },
         body: JSON.stringify({
           message: text,
-          sessionId: session.id,
-          userId: user?.id,
+          sessionId: session?.id || 'anonymous',
+          userId: user?.id || 'anonymous',
+          isAnonymous,
         }),
       })
 
@@ -142,7 +149,7 @@ export default function ChatInterface() {
       // Add AI message
       const aiMessage: Message = {
         id: crypto.randomUUID(),
-        session_id: session.id,
+        session_id: session?.id || 'anonymous',
         speaker: 'AI',
         content: data.message,
         duration: null,
@@ -151,18 +158,20 @@ export default function ChatInterface() {
       
       setMessages(prev => [...prev, aiMessage])
 
-      // Update session speaking time in database
-      await supabase
-        .from('sessions')
-        .update({ total_speaking_time: newSpeakingTime })
-        .eq('id', session.id)
+      // Update session speaking time in database (only for authenticated users)
+      if (session && !isAnonymous) {
+        await supabase
+          .from('sessions')
+          .update({ total_speaking_time: newSpeakingTime })
+          .eq('id', session.id)
+      }
 
     } catch (error) {
       console.error('Error sending message:', error)
       // Add error message
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
-        session_id: session.id,
+        session_id: session?.id || 'anonymous',
         speaker: 'AI',
         content: "I'm sorry, I couldn't process that. Please try again.",
         duration: null,
@@ -174,6 +183,13 @@ export default function ChatInterface() {
   }
 
   const handleEndSession = async () => {
+    if (isAnonymous) {
+      // For anonymous users, just clear the messages
+      setMessages([])
+      setTotalSpeakingTime(0)
+      return
+    }
+
     if (!session) return
 
     try {
@@ -203,12 +219,23 @@ export default function ChatInterface() {
             <h1 className="text-lg font-semibold text-primary">Just Speak</h1>
             <SpeakingTimer totalSeconds={totalSpeakingTime} />
           </div>
-          <button
-            onClick={handleEndSession}
-            className="text-sm text-text-secondary hover:text-text-primary"
-          >
-            End Session
-          </button>
+          <div className="flex items-center gap-4">
+            {isAnonymous ? (
+              <>
+                <span className="text-sm text-text-muted">Practice mode</span>
+                <Link href="/auth/login" className="text-sm text-primary hover:text-blue-700">
+                  Sign in to track progress
+                </Link>
+              </>
+            ) : (
+              <button
+                onClick={handleEndSession}
+                className="text-sm text-text-secondary hover:text-text-primary"
+              >
+                End Session
+              </button>
+            )}
+          </div>
         </div>
       </header>
 

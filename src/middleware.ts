@@ -64,8 +64,8 @@ export async function middleware(request: NextRequest) {
   
   // Auth pages that should be accessible without authentication
   const isAuthPage = path.startsWith('/auth/') || path === '/auth'
-  const isPublicPage = path === '/' || path === '/about' || path === '/system-check'
-  const isProtectedPage = path.startsWith('/chat')
+  const isPublicPage = path === '/' || path === '/about' || path === '/system-check' || path === '/chat'
+  const isProtectedPage = false // No protected pages for now
   
   // Skip auth check for auth callback to allow OAuth flow
   if (path === '/auth/callback') {

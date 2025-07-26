@@ -1,18 +1,11 @@
 'use client'
 
-import { useRequireAuth } from '@/hooks/useRequireAuth'
+import { useAuth } from '@/components/providers/AuthProvider'
 import ChatInterface from '@/components/chat/ChatInterface'
 
 export default function ChatPage() {
-  const { user, loading } = useRequireAuth()
+  const { user } = useAuth()
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
-
-  return <ChatInterface />
+  // Allow chat for both authenticated and anonymous users
+  return <ChatInterface isAnonymous={!user} />
 }

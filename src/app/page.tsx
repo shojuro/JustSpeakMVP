@@ -36,30 +36,23 @@ export default function HomePage() {
             Track your speaking time and build confidence one conversation at a time.
           </p>
           <div className="flex gap-4 justify-center">
+            <Link href="/chat" className="btn-primary">
+              Start Speaking Now
+            </Link>
             {user ? (
-              <>
-                <Link href="/chat" className="btn-primary">
-                  Continue Practicing
-                </Link>
-                <button 
-                  onClick={async () => {
-                    await supabase.auth.signOut()
-                    router.refresh()
-                  }}
-                  className="btn-secondary"
-                >
-                  Sign Out
-                </button>
-              </>
+              <button 
+                onClick={async () => {
+                  await supabase.auth.signOut()
+                  router.refresh()
+                }}
+                className="btn-secondary"
+              >
+                Sign Out
+              </button>
             ) : (
-              <>
-                <Link href="/auth/signup" className="btn-primary">
-                  Start Speaking Now
-                </Link>
-                <Link href="/auth/login" className="btn-secondary">
-                  Sign In
-                </Link>
-              </>
+              <Link href="/auth/login" className="btn-secondary">
+                Sign In to Track Progress
+              </Link>
             )}
           </div>
           

@@ -8,31 +8,43 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, sessionId, userId } = await request.json()
+    const { message, sessionId, userId, isAnonymous } = await request.json()
 
-    if (!message || !sessionId) {
-      return NextResponse.json({ error: 'Message and sessionId are required' }, { status: 400 })
+    if (!message) {
+      return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
-    // Verify user owns the session
-    const supabase = await createClient()
-    const { data: session, error: sessionError } = await supabase
-      .from('sessions')
-      .select('user_id')
-      .eq('id', sessionId)
-      .single()
+    // For anonymous users, skip session verification
+    if (!isAnonymous) {
+      if (!sessionId) {
+        return NextResponse.json({ error: 'SessionId is required for authenticated users' }, { status: 400 })
+      }
 
-    if (sessionError || !session || session.user_id !== userId) {
-      return NextResponse.json({ error: 'Invalid session' }, { status: 403 })
+      // Verify user owns the session
+      const supabase = await createClient()
+      const { data: session, error: sessionError } = await supabase
+        .from('sessions')
+        .select('user_id')
+        .eq('id', sessionId)
+        .single()
+
+      if (sessionError || !session || session.user_id !== userId) {
+        return NextResponse.json({ error: 'Invalid session' }, { status: 403 })
+      }
     }
 
-    // Get conversation history for context (last 10 messages)
-    const { data: history } = await supabase
-      .from('messages')
-      .select('speaker, content')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: false })
-      .limit(10)
+    // Get conversation history for context (last 10 messages) - only for authenticated users
+    let history = null
+    if (!isAnonymous && sessionId !== 'anonymous') {
+      const supabase = await createClient()
+      const { data } = await supabase
+        .from('messages')
+        .select('speaker, content')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      history = data
+    }
 
     // Prepare messages for OpenAI
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -77,22 +89,25 @@ Your role is to:
       completion.choices[0]?.message?.content ||
       "I'm sorry, I didn't catch that. Could you please repeat?"
 
-    // Save both messages to database
-    const { error: insertError } = await supabase.from('messages').insert([
-      {
-        session_id: sessionId,
-        speaker: 'USER',
-        content: message,
-      },
-      {
-        session_id: sessionId,
-        speaker: 'AI',
-        content: aiResponse,
-      },
-    ])
+    // Save both messages to database (only for authenticated users)
+    if (!isAnonymous && sessionId !== 'anonymous') {
+      const supabase = await createClient()
+      const { error: insertError } = await supabase.from('messages').insert([
+        {
+          session_id: sessionId,
+          speaker: 'USER',
+          content: message,
+        },
+        {
+          session_id: sessionId,
+          speaker: 'AI',
+          content: aiResponse,
+        },
+      ])
 
-    if (insertError) {
-      console.error('Error saving messages:', insertError)
+      if (insertError) {
+        console.error('Error saving messages:', insertError)
+      }
     }
 
     return NextResponse.json({ message: aiResponse })
