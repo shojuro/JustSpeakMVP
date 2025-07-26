@@ -12,25 +12,42 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Get the code from the URL
-        const code = new URLSearchParams(window.location.search).get('code')
+        // Get the error from the URL if any
+        const urlParams = new URLSearchParams(window.location.search)
+        const errorCode = urlParams.get('error')
+        const errorDescription = urlParams.get('error_description')
         
-        if (!code) {
-          throw new Error('No authorization code found')
+        if (errorCode) {
+          throw new Error(errorDescription || errorCode)
         }
 
-        // Exchange the code for a session
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        // When using PKCE flow, Supabase automatically handles the code exchange
+        // We just need to check if a session was created
+        const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
           throw error
         }
 
-        if (data.session) {
+        if (session) {
           // Successfully authenticated, redirect to chat
           router.push('/chat')
         } else {
-          throw new Error('No session created')
+          // If no session after callback, wait a moment for auth state to update
+          const authListener = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+              router.push('/chat')
+            }
+          })
+
+          // Clean up listener after 5 seconds if no auth state change
+          setTimeout(() => {
+            authListener.data.subscription.unsubscribe()
+            if (!session) {
+              setError('Authentication failed. Please try again.')
+              setTimeout(() => router.push('/auth/login'), 3000)
+            }
+          }, 5000)
         }
       } catch (err) {
         console.error('Auth callback error:', err)

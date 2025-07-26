@@ -46,13 +46,11 @@ export default function LoginForm() {
         setDebugInfo(`Login failed: ${error.message}`)
         console.error('Login error:', error)
       } else {
-        // Success - add additional navigation attempt
+        // Success - refresh the page to ensure cookies are properly set
         setDebugInfo('Login successful, redirecting...')
-        console.log('Login successful, attempting navigation...')
-        // Give auth state time to update
-        setTimeout(() => {
-          router.push('/chat')
-        }, 500)
+        console.log('Login successful, refreshing to update auth state...')
+        // Use window.location for a full page refresh to ensure cookies are synced
+        window.location.href = '/chat'
       }
     } catch (err) {
       console.error('Unexpected login error:', err)
