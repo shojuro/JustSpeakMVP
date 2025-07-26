@@ -12,18 +12,44 @@ export default function AuthDebugPage() {
   const [error, setError] = useState<string | null>(null)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendMessage, setResendMessage] = useState<string | null>(null)
+  const [cookies, setCookies] = useState<string>('')
+  const [authLogs, setAuthLogs] = useState<string[]>([])
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // Log start
+        addLog('Starting auth check...')
+        
+        // Get cookies
+        setCookies(document.cookie)
+        addLog(`Cookies present: ${document.cookie ? 'Yes' : 'No'}`)
+        
+        // Check session
         const { data: { session }, error } = await supabase.auth.getSession()
-        if (error) throw error
+        if (error) {
+          addLog(`Session error: ${error.message}`)
+          throw error
+        }
+        
         setSession(session)
+        addLog(`Session found: ${session ? 'Yes' : 'No'}`)
+        
+        if (session) {
+          addLog(`User email: ${session.user.email}`)
+          addLog(`Session expires: ${new Date(session.expires_at * 1000).toLocaleString()}`)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to get session')
+        addLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
       } finally {
         setLoading(false)
       }
+    }
+
+    const addLog = (message: string) => {
+      const timestamp = new Date().toLocaleTimeString()
+      setAuthLogs(prev => [...prev, `[${timestamp}] ${message}`])
     }
 
     checkAuth()
@@ -170,6 +196,39 @@ export default function AuthDebugPage() {
             </div>
           )}
 
+          {/* Cookies */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Cookies</h2>
+            <div className="space-y-2">
+              {cookies ? (
+                <div className="font-mono text-xs bg-gray-100 p-4 rounded overflow-auto">
+                  {cookies.split(';').map((cookie, idx) => (
+                    <div key={idx} className="mb-1">
+                      {cookie.trim()}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-text-secondary">No cookies found</p>
+              )}
+            </div>
+            <div className="mt-4 text-sm text-text-secondary">
+              <p>Looking for cookies starting with: <code className="bg-gray-100 px-1">sb-</code></p>
+            </div>
+          </div>
+
+          {/* Auth Logs */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Auth Debug Logs</h2>
+            <div className="font-mono text-xs bg-gray-900 text-green-400 p-4 rounded max-h-64 overflow-auto">
+              {authLogs.map((log, idx) => (
+                <div key={idx} className="mb-1">
+                  {log}
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Actions */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">Actions</h2>
@@ -199,6 +258,12 @@ export default function AuthDebugPage() {
                   </Link>
                 </>
               )}
+              <button
+                onClick={() => window.location.reload()}
+                className="btn-secondary"
+              >
+                Refresh Page
+              </button>
             </div>
           </div>
         </div>

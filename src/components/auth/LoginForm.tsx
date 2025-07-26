@@ -161,6 +161,7 @@ export default function LoginForm() {
             placeholder="you@example.com"
             required
             disabled={loading}
+            autoComplete="email"
           />
         </div>
 
@@ -180,6 +181,7 @@ export default function LoginForm() {
             placeholder="••••••••"
             required
             disabled={loading}
+            autoComplete="current-password"
           />
         </div>
 

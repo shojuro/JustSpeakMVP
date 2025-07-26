@@ -73,6 +73,19 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
+  // Check for auth cookies to detect recent login
+  // Supabase uses cookies with pattern: sb-<project-ref>-auth-token
+  const cookies = request.cookies.getAll()
+  const hasAuthCookie = cookies.some(cookie => 
+    cookie.name.startsWith('sb-') && cookie.name.includes('-auth-token')
+  )
+  console.log(`Middleware: Auth cookies present: ${hasAuthCookie}, cookie count: ${cookies.length}`)
+
+  // If we're on login page and have auth cookies, wait a moment for session to establish
+  if (path === '/auth/login' && hasAuthCookie) {
+    console.log('Middleware: Detected auth cookies on login page, checking session...')
+  }
+
   const { data: { session }, error } = await supabase.auth.getSession()
   
   if (error) {
@@ -86,7 +99,7 @@ export async function middleware(request: NextRequest) {
     return response
   }
   
-  console.log(`Middleware: path=${path}, authenticated=${!!session}, isAuthPage=${isAuthPage}`)
+  console.log(`Middleware: path=${path}, authenticated=${!!session}, isAuthPage=${isAuthPage}, hasAuthCookie=${hasAuthCookie}`)
 
   // Handle protected routes
   if (isProtectedPage && !session) {
@@ -97,17 +110,14 @@ export async function middleware(request: NextRequest) {
   }
 
   // Handle auth pages when already logged in
+  // TEMPORARILY DISABLED to debug redirect loop
+  // Let client-side handle the redirect after login
+  /*
   if (session && isAuthPage && (path === '/auth/login' || path === '/auth/signup')) {
-    console.log('Middleware: Redirecting authenticated user away from auth page')
-    // Check for redirect parameter
-    const redirectTo = request.nextUrl.searchParams.get('redirectTo')
-    if (redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('/auth')) {
-      console.log(`Middleware: Redirecting to ${redirectTo}`)
-      return NextResponse.redirect(new URL(redirectTo, request.url))
-    }
-    console.log('Middleware: Redirecting to /chat')
-    return NextResponse.redirect(new URL('/chat', request.url))
+    console.log('Middleware: Authenticated user on auth page - allowing client-side redirect')
+    return response
   }
+  */
 
   return response
 }
