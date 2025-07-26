@@ -2,9 +2,27 @@
 
 import Link from 'next/link'
 import { useAuth } from '@/components/providers/AuthProvider'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase/client'
 
 export default function HomePage() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    // Debug auth state
+    console.log('Home page - Auth state:', { user: user?.email, loading })
+  }, [user, loading])
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gradient-to-b from-bg-secondary to-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-bg-secondary to-white">
@@ -19,9 +37,20 @@ export default function HomePage() {
           </p>
           <div className="flex gap-4 justify-center">
             {user ? (
-              <Link href="/chat" className="btn-primary">
-                Continue Practicing
-              </Link>
+              <>
+                <Link href="/chat" className="btn-primary">
+                  Continue Practicing
+                </Link>
+                <button 
+                  onClick={async () => {
+                    await supabase.auth.signOut()
+                    router.refresh()
+                  }}
+                  className="btn-secondary"
+                >
+                  Sign Out
+                </button>
+              </>
             ) : (
               <>
                 <Link href="/auth/signup" className="btn-primary">
@@ -57,6 +86,29 @@ export default function HomePage() {
               <p className="text-text-secondary">
                 Natural conversations with AI that adapts to your level.
               </p>
+            </div>
+          </div>
+
+          {/* Debug info for production */}
+          <div className="mt-12 pt-8 border-t text-xs text-gray-500">
+            <p>Auth state: {loading ? 'Loading...' : user ? `Logged in as ${user.email}` : 'Not logged in'}</p>
+            <div className="mt-2">
+              <Link href="/auth/debug" className="text-gray-500 hover:text-gray-700 mr-4">
+                Auth Debug
+              </Link>
+              <Link href="/system-check" className="text-gray-500 hover:text-gray-700 mr-4">
+                System Check
+              </Link>
+              <button
+                onClick={() => {
+                  localStorage.clear()
+                  sessionStorage.clear()
+                  window.location.reload()
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Clear Cache
+              </button>
             </div>
           </div>
         </div>

@@ -17,10 +17,12 @@ export default function LoginForm() {
   const [showResendConfirmation, setShowResendConfirmation] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendSuccess, setResendSuccess] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<string>('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setDebugInfo('Starting login...')
     setLoading(true)
 
     try {
@@ -41,9 +43,11 @@ export default function LoginForm() {
         } else {
           setError(error.message)
         }
+        setDebugInfo(`Login failed: ${error.message}`)
         console.error('Login error:', error)
       } else {
         // Success - add additional navigation attempt
+        setDebugInfo('Login successful, redirecting...')
         console.log('Login successful, attempting navigation...')
         // Give auth state time to update
         setTimeout(() => {
@@ -52,7 +56,9 @@ export default function LoginForm() {
       }
     } catch (err) {
       console.error('Unexpected login error:', err)
-      setError('An unexpected error occurred. Please try again.')
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
+      setError(errorMessage)
+      setDebugInfo(`Unexpected error: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
@@ -111,6 +117,13 @@ export default function LoginForm() {
             <p className="text-sm text-green-700">
               Confirmation email sent! Please check your inbox and click the link to confirm your account.
             </p>
+          </div>
+        )}
+
+        {/* Debug info in production */}
+        {debugInfo && (
+          <div className="mb-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
+            {debugInfo}
           </div>
         )}
 
@@ -176,6 +189,16 @@ export default function LoginForm() {
               Sign up
             </Link>
           </p>
+        </div>
+
+        {/* Production debug links */}
+        <div className="mt-4 pt-4 border-t text-center text-xs">
+          <Link href="/auth/debug" className="text-gray-500 hover:text-gray-700 mr-4">
+            Auth Debug
+          </Link>
+          <Link href="/system-check" className="text-gray-500 hover:text-gray-700">
+            System Check
+          </Link>
         </div>
       </form>
     </div>
