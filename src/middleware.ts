@@ -11,7 +11,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  let response = NextResponse.next({
+  // Create response once and reuse it
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -26,76 +27,86 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
+          // Set cookie on both request and response
           request.cookies.set({
             name,
             value,
             ...options,
           })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
           response.cookies.set({
             name,
             value,
             ...options,
+            sameSite: options.sameSite ?? 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            httpOnly: options.httpOnly ?? true,
           })
         },
         remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
+          // Remove cookie from both request and response
+          request.cookies.delete(name)
           response.cookies.set({
             name,
             value: '',
             ...options,
+            maxAge: 0,
+            sameSite: options.sameSite ?? 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            httpOnly: options.httpOnly ?? true,
           })
         },
       },
     }
   )
 
+  // Get current path
+  const path = request.nextUrl.pathname
+  
+  // Auth pages that should be accessible without authentication
+  const isAuthPage = path.startsWith('/auth/') || path === '/auth'
+  const isPublicPage = path === '/' || path === '/about' || path === '/system-check'
+  const isProtectedPage = path.startsWith('/chat')
+  
+  // Skip auth check for auth callback to allow OAuth flow
+  if (path === '/auth/callback') {
+    console.log('Middleware: Allowing auth callback')
+    return response
+  }
+
   const { data: { session }, error } = await supabase.auth.getSession()
   
   if (error) {
     console.error('Middleware auth error:', error)
-  }
-  
-  console.log(`Middleware: ${request.nextUrl.pathname}, authenticated: ${!!session}`)
-
-  // Protected routes
-  if (request.nextUrl.pathname.startsWith('/chat')) {
-    if (!session) {
+    // On error, allow access to public and auth pages, protect others
+    if (!isAuthPage && !isPublicPage) {
       const redirectUrl = new URL('/auth/login', request.url)
-      redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname)
+      redirectUrl.searchParams.set('redirectTo', path)
       return NextResponse.redirect(redirectUrl)
     }
+    return response
+  }
+  
+  console.log(`Middleware: path=${path}, authenticated=${!!session}, isAuthPage=${isAuthPage}`)
+
+  // Handle protected routes
+  if (isProtectedPage && !session) {
+    console.log('Middleware: Redirecting unauthenticated user to login')
+    const redirectUrl = new URL('/auth/login', request.url)
+    redirectUrl.searchParams.set('redirectTo', path)
+    return NextResponse.redirect(redirectUrl)
   }
 
-  // Auth pages behavior when logged in
-  if (session && (
-    request.nextUrl.pathname === '/auth/login' ||
-    request.nextUrl.pathname === '/auth/signup'
-  )) {
-    // Check if there's a redirect URL
+  // Handle auth pages when already logged in
+  if (session && isAuthPage && (path === '/auth/login' || path === '/auth/signup')) {
+    console.log('Middleware: Redirecting authenticated user away from auth page')
+    // Check for redirect parameter
     const redirectTo = request.nextUrl.searchParams.get('redirectTo')
-    if (redirectTo && redirectTo.startsWith('/')) {
+    if (redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('/auth')) {
+      console.log(`Middleware: Redirecting to ${redirectTo}`)
       return NextResponse.redirect(new URL(redirectTo, request.url))
     }
+    console.log('Middleware: Redirecting to /chat')
     return NextResponse.redirect(new URL('/chat', request.url))
-  }
-
-  // Allow access to auth debug page regardless of auth status
-  if (request.nextUrl.pathname === '/auth/debug') {
-    return response
   }
 
   return response

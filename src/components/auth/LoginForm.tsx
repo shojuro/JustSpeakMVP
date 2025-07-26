@@ -46,11 +46,31 @@ export default function LoginForm() {
         setDebugInfo(`Login failed: ${error.message}`)
         console.error('Login error:', error)
       } else {
-        // Success - refresh the page to ensure cookies are properly set
-        setDebugInfo('Login successful, redirecting...')
-        console.log('Login successful, refreshing to update auth state...')
-        // Use window.location for a full page refresh to ensure cookies are synced
-        window.location.href = '/chat'
+        // Success - verify session and redirect
+        setDebugInfo('Login successful, verifying session...')
+        console.log('Login successful, verifying session...')
+        
+        // Wait a moment for auth state to propagate
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Verify session is established
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (session) {
+          setDebugInfo('Session verified, redirecting...')
+          console.log('Session verified, redirecting to chat...')
+          
+          // Get redirect URL from params or default to /chat
+          const params = new URLSearchParams(window.location.search)
+          const redirectTo = params.get('redirectTo') || '/chat'
+          
+          // Use window.location for a full page refresh to ensure cookies are synced
+          window.location.href = redirectTo
+        } else {
+          setError('Session could not be established. Please try again.')
+          setDebugInfo('Session verification failed')
+          console.error('Session verification failed after login')
+        }
       }
     } catch (err) {
       console.error('Unexpected login error:', err)

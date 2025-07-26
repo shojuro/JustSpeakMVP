@@ -41,12 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Auth state changed:', event, session?.user?.email)
       setUser(session?.user ?? null)
       setLoading(false)
-      
-      // If just signed in and on login page, redirect to chat
-      if (event === 'SIGNED_IN' && window.location.pathname === '/auth/login') {
-        console.log('User signed in on login page, redirecting to chat')
-        router.push('/chat')
-      }
+      // Remove automatic redirect - let LoginForm handle navigation
     })
 
     return () => subscription.unsubscribe()
@@ -85,23 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (data.session) {
         console.log('Sign in successful, session created')
-        // Force a session refresh to ensure auth state is updated
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        if (session) {
-          console.log('Session confirmed, navigating to chat...')
-          // Use setTimeout to ensure state updates have propagated
-          setTimeout(() => {
-            router.push('/chat')
-            // Fallback to window.location if router.push doesn't work
-            setTimeout(() => {
-              if (window.location.pathname !== '/chat') {
-                console.log('Router push failed, using window.location')
-                window.location.href = '/chat'
-              }
-            }, 1000)
-          }, 100)
-        }
+        // Don't handle navigation here - let the LoginForm handle it
+        // This prevents race conditions and conflicting redirects
       }
 
       return { error: null }
