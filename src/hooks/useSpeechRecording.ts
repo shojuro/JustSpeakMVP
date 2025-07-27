@@ -196,6 +196,10 @@ export function useSpeechRecording() {
     console.log('[Recording] Current MediaRecorder state:', mediaRecorderRef.current?.state)
     console.log('[Recording] Current chunks count:', chunksRef.current.length)
     
+    // Check minimum duration (0.5 seconds)
+    const recordingDuration = (Date.now() - startTimeRef.current) / 1000
+    console.log('[Recording] Recording duration:', recordingDuration, 'seconds')
+    
     // Clear duration interval
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current)
@@ -237,9 +241,10 @@ export function useSpeechRecording() {
     try {
       console.log('[Transcription] Starting, blob size:', audioBlob.size)
       
-      if (audioBlob.size < 1000) {
+      // Minimum size for 0.1 seconds of audio (roughly 2000 bytes for webm)
+      if (audioBlob.size < 2000) {
         console.log('[Transcription] Audio too short, skipping')
-        setError('Recording too short. Please hold the button longer.')
+        setError('Recording too short. Please hold the button for at least half a second.')
         return
       }
 

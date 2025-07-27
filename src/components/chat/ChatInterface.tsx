@@ -51,9 +51,18 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   }, [user, isAnonymous])
 
   // Handle transcript updates
+  const lastTranscriptRef = useRef<string>('')
+  
   useEffect(() => {
     console.log('[ChatInterface] Transcript update - transcript:', transcript, 'isRecording:', isRecording)
     if (transcript && transcript.trim().length > 0 && !isRecording) {
+      // Prevent duplicate messages
+      if (lastTranscriptRef.current === transcript) {
+        console.log('[ChatInterface] Duplicate transcript, skipping:', transcript)
+        return
+      }
+      lastTranscriptRef.current = transcript
+      
       console.log('[ChatInterface] Processing transcript:', transcript)
       // Add validation to prevent spam messages
       const lowerTranscript = transcript.toLowerCase()

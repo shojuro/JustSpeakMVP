@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
       file: file,
       model: 'whisper-1',
       language: 'en',
-      // Remove prompt to avoid any potential interference
+      response_format: 'json',
+      temperature: 0, // More deterministic results
     })
 
     console.log('Speech-to-text: Transcription successful', {
