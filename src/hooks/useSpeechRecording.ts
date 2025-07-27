@@ -251,11 +251,13 @@ export function useSpeechRecording() {
         body: formData,
       })
 
+      const data = await response.json()
+      
       if (!response.ok) {
-        throw new Error(`Transcription failed: ${response.status}`)
+        console.error('[Transcription] API error:', data)
+        throw new Error(data.error || `Transcription failed: ${response.status}`)
       }
 
-      const data = await response.json()
       console.log('[Transcription] Result:', data)
       
       if (data.text) {
