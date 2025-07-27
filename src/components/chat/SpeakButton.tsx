@@ -1,5 +1,7 @@
 'use client'
 
+import { useRef } from 'react'
+
 interface SpeakButtonProps {
   isRecording: boolean
   onStart: () => void
@@ -8,18 +10,45 @@ interface SpeakButtonProps {
 }
 
 export default function SpeakButton({ isRecording, onStart, onStop, disabled }: SpeakButtonProps) {
+  const lastActionTime = useRef<number>(0)
+  const cooldownMs = 300 // Minimum time between actions
+  
   const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault()
-    if (!disabled) onStart()
+    e.stopPropagation()
+    
+    const now = Date.now()
+    if (now - lastActionTime.current < cooldownMs) {
+      console.log('Button cooldown active')
+      return
+    }
+    
+    if (!disabled && !isRecording) {
+      lastActionTime.current = now
+      onStart()
+    }
   }
 
   const handleMouseUp = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault()
-    if (isRecording) onStop()
+    e.stopPropagation()
+    
+    if (isRecording) {
+      lastActionTime.current = Date.now()
+      onStop()
+    }
   }
 
   const handleMouseLeave = () => {
-    if (isRecording) onStop()
+    if (isRecording) {
+      lastActionTime.current = Date.now()
+      onStop()
+    }
+  }
+  
+  // Prevent context menu on long press
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
   }
 
   return (
@@ -30,6 +59,8 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
         onMouseLeave={handleMouseLeave}
         onTouchStart={handleMouseDown}
         onTouchEnd={handleMouseUp}
+        onTouchCancel={handleMouseLeave}
+        onContextMenu={handleContextMenu}
         disabled={disabled}
         className={`
           relative w-24 h-24 rounded-full flex items-center justify-center

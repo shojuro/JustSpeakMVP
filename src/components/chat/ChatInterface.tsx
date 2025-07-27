@@ -24,10 +24,14 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   
   const {
     isRecording,
+    isStarting,
+    isStopping,
     startRecording,
     stopRecording,
+    forceCleanup,
     transcript,
     duration,
+    error: recordingError,
   } = useSpeechRecording()
 
   // Scroll to bottom when new messages arrive
@@ -280,8 +284,17 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
             isRecording={isRecording}
             onStart={startRecording}
             onStop={stopRecording}
-            disabled={isLoading}
+            disabled={isLoading || isStarting || isStopping}
           />
+          
+          {/* Recording states */}
+          {isStarting && (
+            <div className="text-center mt-4">
+              <p className="text-text-secondary animate-pulse">
+                Starting microphone...
+              </p>
+            </div>
+          )}
           
           {isRecording && (
             <div className="text-center mt-4">
@@ -291,6 +304,27 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
               <p className="text-sm text-text-muted mt-1">
                 Release to send your message
               </p>
+            </div>
+          )}
+          
+          {isStopping && (
+            <div className="text-center mt-4">
+              <p className="text-text-secondary animate-pulse">
+                Processing...
+              </p>
+            </div>
+          )}
+          
+          {/* Error display */}
+          {recordingError && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{recordingError}</p>
+              <button
+                onClick={forceCleanup}
+                className="mt-2 text-sm text-red-700 hover:text-red-800 underline"
+              >
+                Reset microphone
+              </button>
             </div>
           )}
         </div>
