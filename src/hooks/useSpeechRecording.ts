@@ -13,6 +13,7 @@ export function useSpeechRecording() {
   const chunksRef = useRef<Blob[]>([])
   const startTimeRef = useRef<number>(0)
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const maxDurationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const startRecording = useCallback(async () => {
     console.log('[Recording] Start requested, current state:', isRecording)
@@ -170,7 +171,19 @@ export function useSpeechRecording() {
         }
       }, 500) // Request data every 500ms
 
-      console.log('[Recording] Started successfully with periodic data collection')
+      // Maximum recording duration (60 seconds)
+      const maxDurationTimeout = setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          console.log('[Recording] Maximum duration reached (60s), stopping...')
+          setError('Maximum recording duration reached (60 seconds)')
+          stopRecording()
+        }
+      }, 60000)
+
+      // Store timeout reference for cleanup
+      maxDurationTimeoutRef.current = maxDurationTimeout
+
+      console.log('[Recording] Started successfully with periodic data collection and 60s max duration')
     } catch (error: any) {
       console.error('[Recording] Failed to start:', error)
       
@@ -204,6 +217,12 @@ export function useSpeechRecording() {
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current)
       durationIntervalRef.current = null
+    }
+    
+    // Clear max duration timeout
+    if (maxDurationTimeoutRef.current) {
+      clearTimeout(maxDurationTimeoutRef.current)
+      maxDurationTimeoutRef.current = null
     }
 
     // Stop media recorder if it exists and is recording
@@ -284,6 +303,11 @@ export function useSpeechRecording() {
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current)
       durationIntervalRef.current = null
+    }
+    
+    if (maxDurationTimeoutRef.current) {
+      clearTimeout(maxDurationTimeoutRef.current)
+      maxDurationTimeoutRef.current = null
     }
     
     if (mediaRecorderRef.current) {

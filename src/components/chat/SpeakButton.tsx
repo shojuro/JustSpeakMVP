@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import React, { useRef } from 'react'
 
 interface SpeakButtonProps {
   isRecording: boolean
@@ -10,25 +10,24 @@ interface SpeakButtonProps {
 }
 
 export default function SpeakButton({ isRecording, onStart, onStop, disabled }: SpeakButtonProps) {
-  const lastActionTime = useRef<number>(0)
-  const cooldownMs = 150 // Minimum time between actions (reduced for better responsiveness)
+  const buttonRef = useRef<HTMLButtonElement>(null)
   
-  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault()
     e.stopPropagation()
     
-    console.log('[Button] Mouse down, disabled:', disabled, 'isRecording:', isRecording)
+    console.log('[Button] Start event, disabled:', disabled, 'isRecording:', isRecording)
     
     if (!disabled && !isRecording) {
       onStart()
     }
   }
 
-  const handleMouseUp = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleStop = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault()
     e.stopPropagation()
     
-    console.log('[Button] Mouse up, isRecording:', isRecording)
+    console.log('[Button] Stop event, isRecording:', isRecording)
     
     if (isRecording) {
       onStop()
@@ -42,6 +41,33 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
     }
   }
   
+  // Global mouse up handler to catch releases outside button
+  React.useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      console.log('[Button] Global mouse up, isRecording:', isRecording)
+      if (isRecording) {
+        onStop()
+      }
+    }
+
+    const handleGlobalTouchEnd = () => {
+      console.log('[Button] Global touch end, isRecording:', isRecording)
+      if (isRecording) {
+        onStop()
+      }
+    }
+
+    if (isRecording) {
+      document.addEventListener('mouseup', handleGlobalMouseUp)
+      document.addEventListener('touchend', handleGlobalTouchEnd)
+      
+      return () => {
+        document.removeEventListener('mouseup', handleGlobalMouseUp)
+        document.removeEventListener('touchend', handleGlobalTouchEnd)
+      }
+    }
+  }, [isRecording, onStop])
+  
   // Prevent context menu on long press
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -50,11 +76,12 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
   return (
     <div className="flex flex-col items-center">
       <button
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
+        ref={buttonRef}
+        onMouseDown={handleStart}
+        onMouseUp={handleStop}
         onMouseLeave={handleMouseLeave}
-        onTouchStart={handleMouseDown}
-        onTouchEnd={handleMouseUp}
+        onTouchStart={handleStart}
+        onTouchEnd={handleStop}
         onTouchCancel={handleMouseLeave}
         onContextMenu={handleContextMenu}
         disabled={disabled}
