@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       file: file,
       model: 'whisper-1',
       language: 'en',
-      prompt: 'This is an English language learning conversation.',
+      // Remove prompt to avoid any potential interference
     })
 
     return NextResponse.json({ text: transcription.text })

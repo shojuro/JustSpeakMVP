@@ -17,91 +17,20 @@ export function useSpeechRecording() {
   const startTimeRef = useRef<number>(0)
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const recognitionRef = useRef<any>(null)
-  const isCleaningUp = useRef(false)
-  const transcriptRef = useRef('')
-  const stateRef = useRef<RecordingState>('idle')
-
-  // Helper to update both state and ref
-  const updateState = useCallback((newState: RecordingState) => {
-    stateRef.current = newState
-    setState(newState)
-  }, [])
-
-  // Initialize Web Speech API once
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition
-      const recognition = new SpeechRecognition()
-      recognition.continuous = true
-      recognition.interimResults = true
-      recognition.lang = 'en-US'
-
-      recognition.onresult = (event: any) => {
-        let finalTranscript = ''
-        
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript + ' '
-          }
-        }
-        
-        if (finalTranscript) {
-          const newTranscript = transcriptRef.current + ' ' + finalTranscript.trim()
-          transcriptRef.current = newTranscript.trim()
-          setTranscript(newTranscript.trim())
-        }
-      }
-
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error)
-        
-        // Handle specific errors
-        if (event.error === 'aborted') {
-          // This is expected when we stop recognition
-          return
-        } else if (event.error === 'no-speech') {
-          // This happens when no speech is detected for a while
-          console.log('No speech detected, continuing...')
-          // Don't show error to user, just continue recording
-          return
-        } else if (event.error === 'audio-capture') {
-          setError('Microphone access lost. Please check your permissions.')
-        } else if (event.error === 'network') {
-          setError('Network error. Please check your connection.')
-        } else {
-          setError(`Speech recognition error: ${event.error}`)
-        }
-      }
-
-      recognition.onend = () => {
-        console.log('Speech recognition ended, current state:', stateRef.current)
-        // If we're still supposed to be recording, restart recognition
-        if (stateRef.current === 'recording' && recognitionRef.current) {
-          try {
-            console.log('Restarting speech recognition...')
-            recognitionRef.current.start()
-          } catch (e) {
-            console.error('Failed to restart recognition:', e)
-          }
-        }
-      }
-
-      recognitionRef.current = recognition
-    }
-
-    // Cleanup on unmount
-    return () => {
-      cleanup()
-    }
-  }, [])
 
   // Comprehensive cleanup function
   const cleanup = useCallback(() => {
-    if (isCleaningUp.current) return
-    isCleaningUp.current = true
-
     console.log('Cleaning up recording resources...')
+
+    // Stop and clean up speech recognition
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort()
+        recognitionRef.current = null
+      } catch (e) {
+        console.error('Error stopping speech recognition:', e)
+      }
+    }
 
     // Stop media recorder
     if (mediaRecorderRef.current) {
@@ -124,15 +53,6 @@ export function useSpeechRecording() {
       streamRef.current = null
     }
 
-    // Stop speech recognition
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort()
-      } catch (e) {
-        console.error('Error stopping speech recognition:', e)
-      }
-    }
-
     // Clear duration interval
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current)
@@ -141,9 +61,14 @@ export function useSpeechRecording() {
 
     // Reset chunks
     chunksRef.current = []
-
-    isCleaningUp.current = false
   }, [])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanup()
+    }
+  }, [cleanup])
 
   const startRecording = useCallback(async () => {
     // Prevent starting if not in idle state
@@ -153,14 +78,16 @@ export function useSpeechRecording() {
     }
 
     try {
-      updateState('starting')
+      setState('starting')
       setError(null)
       setTranscript('')
-      transcriptRef.current = ''
       setDuration(0)
       
       // Ensure cleanup of any previous session
       cleanup()
+
+      // Small delay to ensure cleanup completes
+      await new Promise(resolve => setTimeout(resolve, 100))
 
       // Request microphone permission
       console.log('Requesting microphone permission...')
@@ -187,38 +114,66 @@ export function useSpeechRecording() {
       }
 
       mediaRecorder.onstop = async () => {
-        console.log('MediaRecorder stopped')
+        console.log('MediaRecorder stopped, chunks:', chunksRef.current.length)
         
-        // Only transcribe if we have audio and no transcript
-        if (chunksRef.current.length > 0 && !transcriptRef.current) {
+        // Only transcribe if we have audio data
+        if (chunksRef.current.length > 0) {
           const audioBlob = new Blob(chunksRef.current, { type: mimeType })
-          await transcribeAudio(audioBlob)
+          
+          // If no transcript from speech recognition, use audio transcription
+          if (!transcript) {
+            await transcribeAudio(audioBlob)
+          }
         }
+        
+        // Ensure state is reset
+        setState('idle')
       }
 
       mediaRecorder.onerror = (event) => {
         console.error('MediaRecorder error:', event)
         setError('Recording error occurred')
         cleanup()
-        updateState('idle')
+        setState('idle')
       }
 
       // Start recording
       mediaRecorder.start(100) // Collect data every 100ms
       mediaRecorderRef.current = mediaRecorder
 
-      // Start speech recognition if available
-      if (recognitionRef.current) {
+      // Try to use Web Speech API if available (but don't rely on it)
+      if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
         try {
-          recognitionRef.current.start()
-          console.log('Speech recognition started')
-        } catch (e: any) {
-          if (e.message && e.message.includes('already started')) {
-            console.log('Speech recognition already running')
-          } else {
-            console.error('Speech recognition error:', e)
-            // Continue without speech recognition
+          const SpeechRecognition = (window as any).webkitSpeechRecognition
+          const recognition = new SpeechRecognition()
+          recognition.continuous = false // Change to false to avoid issues
+          recognition.interimResults = false // Change to false for more stability
+          recognition.lang = 'en-US'
+          recognition.maxAlternatives = 1
+
+          recognition.onresult = (event: any) => {
+            const result = event.results[0]
+            if (result && result.isFinal) {
+              const finalTranscript = result[0].transcript
+              console.log('Speech recognition result:', finalTranscript)
+              setTranscript(finalTranscript)
+            }
           }
+
+          recognition.onerror = (event: any) => {
+            console.warn('Speech recognition error:', event.error)
+            // Don't show errors to user, fallback to audio transcription
+          }
+
+          recognition.onend = () => {
+            console.log('Speech recognition ended')
+          }
+
+          recognition.start()
+          recognitionRef.current = recognition
+        } catch (e) {
+          console.warn('Could not start speech recognition:', e)
+          // Continue without it
         }
       }
 
@@ -229,12 +184,12 @@ export function useSpeechRecording() {
         setDuration(elapsed)
       }, 100)
 
-      updateState('recording')
+      setState('recording')
       console.log('Recording started successfully')
     } catch (error: any) {
       console.error('Error starting recording:', error)
       cleanup()
-      updateState('idle')
+      setState('idle')
       
       if (error.name === 'NotAllowedError') {
         setError('Microphone permission denied. Please allow microphone access.')
@@ -244,7 +199,7 @@ export function useSpeechRecording() {
         setError('Failed to start recording. Please try again.')
       }
     }
-  }, [state, cleanup, updateState])
+  }, [state, cleanup, transcript])
 
   const stopRecording = useCallback(() => {
     // Only stop if actually recording
@@ -253,15 +208,10 @@ export function useSpeechRecording() {
       return
     }
 
-    updateState('stopping')
+    setState('stopping')
     console.log('Stopping recording...')
 
-    // Stop media recorder
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop()
-    }
-
-    // Stop speech recognition
+    // Stop speech recognition first
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop()
@@ -270,18 +220,25 @@ export function useSpeechRecording() {
       }
     }
 
+    // Stop media recorder
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop()
+    }
+
     // Stop duration tracking
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current)
       durationIntervalRef.current = null
     }
 
-    // Cleanup will happen in mediaRecorder.onstop
+    // Cleanup streams after a delay
     setTimeout(() => {
-      cleanup()
-      updateState('idle')
-    }, 500) // Give time for data to be processed
-  }, [state, cleanup, updateState])
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+      }
+    }, 500)
+  }, [state])
 
   const transcribeAudio = async (audioBlob: Blob) => {
     try {
@@ -306,7 +263,7 @@ export function useSpeechRecording() {
 
       const data = await response.json()
       if (data.text) {
-        transcriptRef.current = data.text
+        console.log('Transcription result:', data.text)
         setTranscript(data.text)
       }
     } catch (error) {
@@ -318,12 +275,11 @@ export function useSpeechRecording() {
   // Force cleanup method for error recovery
   const forceCleanup = useCallback(() => {
     cleanup()
-    updateState('idle')
+    setState('idle')
     setError(null)
     setTranscript('')
-    transcriptRef.current = ''
     setDuration(0)
-  }, [cleanup, updateState])
+  }, [cleanup])
 
   return {
     isRecording: state === 'recording',

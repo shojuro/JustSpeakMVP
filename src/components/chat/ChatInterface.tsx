@@ -53,6 +53,13 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   // Handle transcript updates
   useEffect(() => {
     if (transcript && !isRecording) {
+      console.log('Transcript received:', transcript)
+      // Add validation to prevent spam messages
+      if (transcript.toLowerCase().includes('engvid.com') || 
+          transcript.toLowerCase().includes('learn english for free')) {
+        console.error('Suspicious transcript blocked:', transcript)
+        return
+      }
       handleSendMessage(transcript)
     }
   }, [transcript, isRecording])
