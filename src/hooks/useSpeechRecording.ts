@@ -1,251 +1,137 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
-
-type RecordingState = 'idle' | 'starting' | 'recording' | 'stopping'
+import { useState, useRef, useCallback } from 'react'
 
 export function useSpeechRecording() {
-  const [state, setState] = useState<RecordingState>('idle')
+  const [isRecording, setIsRecording] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState<string | null>(null)
   
-  // Stable refs that won't cause re-renders
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const startTimeRef = useRef<number>(0)
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const recognitionRef = useRef<any>(null)
-
-  // Comprehensive cleanup function
-  const cleanup = useCallback(() => {
-    console.log('Cleaning up recording resources...')
-
-    // Stop and clean up speech recognition
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort()
-        recognitionRef.current = null
-      } catch (e) {
-        console.error('Error stopping speech recognition:', e)
-      }
-    }
-
-    // Stop media recorder
-    if (mediaRecorderRef.current) {
-      try {
-        if (mediaRecorderRef.current.state !== 'inactive') {
-          mediaRecorderRef.current.stop()
-        }
-      } catch (e) {
-        console.error('Error stopping media recorder:', e)
-      }
-      mediaRecorderRef.current = null
-    }
-
-    // Stop all stream tracks
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        track.stop()
-        console.log('Stopped track:', track.label)
-      })
-      streamRef.current = null
-    }
-
-    // Clear duration interval
-    if (durationIntervalRef.current) {
-      clearInterval(durationIntervalRef.current)
-      durationIntervalRef.current = null
-    }
-
-    // Reset chunks
-    chunksRef.current = []
-  }, [])
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanup()
-    }
-  }, [cleanup])
 
   const startRecording = useCallback(async () => {
-    // Prevent starting if not in idle state
-    if (state !== 'idle') {
-      console.log('Cannot start recording, current state:', state)
-      return
-    }
+    console.log('[Recording] Start requested, current state:', isRecording)
+    
+    // Reset state
+    setError(null)
+    setTranscript('')
+    setDuration(0)
+    chunksRef.current = []
 
     try {
-      setState('starting')
-      setError(null)
-      setTranscript('')
-      setDuration(0)
-      
-      // Ensure cleanup of any previous session
-      cleanup()
-
-      // Small delay to ensure cleanup completes
-      await new Promise(resolve => setTimeout(resolve, 100))
-
-      // Request microphone permission
-      console.log('Requesting microphone permission...')
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        } 
-      })
+      console.log('[Recording] Requesting microphone access...')
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
+      console.log('[Recording] Microphone access granted')
 
-      // Create and configure MediaRecorder
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
-        ? 'audio/webm;codecs=opus' 
-        : 'audio/webm'
-      
-      const mediaRecorder = new MediaRecorder(stream, { mimeType })
-      
+      // Create MediaRecorder
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data)
+          console.log('[Recording] Data chunk received, size:', event.data.size)
         }
       }
 
       mediaRecorder.onstop = async () => {
-        console.log('MediaRecorder stopped, chunks:', chunksRef.current.length)
+        console.log('[Recording] MediaRecorder stopped')
         
-        // Only transcribe if we have audio data
-        if (chunksRef.current.length > 0) {
-          const audioBlob = new Blob(chunksRef.current, { type: mimeType })
-          
-          // If no transcript from speech recognition, use audio transcription
-          if (!transcript) {
-            await transcribeAudio(audioBlob)
-          }
+        // Stop all tracks
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => {
+            track.stop()
+            console.log('[Recording] Track stopped:', track.label)
+          })
+          streamRef.current = null
         }
-        
-        // Ensure state is reset
-        setState('idle')
+
+        // Process audio if we have data
+        if (chunksRef.current.length > 0) {
+          console.log('[Recording] Processing', chunksRef.current.length, 'audio chunks')
+          const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' })
+          await transcribeAudio(audioBlob)
+        }
+
+        setIsRecording(false)
       }
 
-      mediaRecorder.onerror = (event) => {
-        console.error('MediaRecorder error:', event)
-        setError('Recording error occurred')
-        cleanup()
-        setState('idle')
+      mediaRecorder.onerror = (event: any) => {
+        console.error('[Recording] MediaRecorder error:', event)
+        setError('Recording failed. Please try again.')
+        stopRecording()
       }
 
       // Start recording
-      mediaRecorder.start(100) // Collect data every 100ms
-      mediaRecorderRef.current = mediaRecorder
-
-      // Try to use Web Speech API if available (but don't rely on it)
-      if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-        try {
-          const SpeechRecognition = (window as any).webkitSpeechRecognition
-          const recognition = new SpeechRecognition()
-          recognition.continuous = false // Change to false to avoid issues
-          recognition.interimResults = false // Change to false for more stability
-          recognition.lang = 'en-US'
-          recognition.maxAlternatives = 1
-
-          recognition.onresult = (event: any) => {
-            const result = event.results[0]
-            if (result && result.isFinal) {
-              const finalTranscript = result[0].transcript
-              console.log('Speech recognition result:', finalTranscript)
-              setTranscript(finalTranscript)
-            }
-          }
-
-          recognition.onerror = (event: any) => {
-            console.warn('Speech recognition error:', event.error)
-            // Don't show errors to user, fallback to audio transcription
-          }
-
-          recognition.onend = () => {
-            console.log('Speech recognition ended')
-          }
-
-          recognition.start()
-          recognitionRef.current = recognition
-        } catch (e) {
-          console.warn('Could not start speech recognition:', e)
-          // Continue without it
-        }
-      }
-
-      // Start tracking duration
+      mediaRecorder.start()
+      setIsRecording(true)
+      
+      // Start duration tracking
       startTimeRef.current = Date.now()
       durationIntervalRef.current = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
         setDuration(elapsed)
       }, 100)
 
-      setState('recording')
-      console.log('Recording started successfully')
+      console.log('[Recording] Started successfully')
     } catch (error: any) {
-      console.error('Error starting recording:', error)
-      cleanup()
-      setState('idle')
+      console.error('[Recording] Failed to start:', error)
       
       if (error.name === 'NotAllowedError') {
-        setError('Microphone permission denied. Please allow microphone access.')
+        setError('Microphone permission denied. Please allow access and try again.')
       } else if (error.name === 'NotFoundError') {
         setError('No microphone found. Please connect a microphone.')
       } else {
-        setError('Failed to start recording. Please try again.')
+        setError('Failed to start recording: ' + error.message)
       }
+      
+      // Cleanup on error
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+      }
+      setIsRecording(false)
     }
-  }, [state, cleanup, transcript])
+  }, [])
 
   const stopRecording = useCallback(() => {
-    // Only stop if actually recording
-    if (state !== 'recording') {
-      console.log('Not recording, cannot stop. State:', state)
-      return
-    }
-
-    setState('stopping')
-    console.log('Stopping recording...')
-
-    // Stop speech recognition first
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop()
-      } catch (e) {
-        console.error('Error stopping recognition:', e)
-      }
-    }
-
-    // Stop media recorder
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop()
-    }
-
-    // Stop duration tracking
+    console.log('[Recording] Stop requested')
+    
+    // Clear duration interval
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current)
       durationIntervalRef.current = null
     }
 
-    // Cleanup streams after a delay
-    setTimeout(() => {
+    // Stop media recorder if it exists and is recording
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      console.log('[Recording] Stopping MediaRecorder...')
+      mediaRecorderRef.current.stop()
+      mediaRecorderRef.current = null
+    } else {
+      console.log('[Recording] MediaRecorder not recording, cleaning up...')
+      // If not recording, still clean up
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop())
         streamRef.current = null
       }
-    }, 500)
-  }, [state])
+      setIsRecording(false)
+    }
+  }, [])
 
   const transcribeAudio = async (audioBlob: Blob) => {
     try {
-      console.log('Transcribing audio blob, size:', audioBlob.size)
+      console.log('[Transcription] Starting, blob size:', audioBlob.size)
       
       if (audioBlob.size < 1000) {
-        console.log('Audio too short, skipping transcription')
+        console.log('[Transcription] Audio too short, skipping')
+        setError('Recording too short. Please hold the button longer.')
         return
       }
 
@@ -262,34 +148,65 @@ export function useSpeechRecording() {
       }
 
       const data = await response.json()
+      console.log('[Transcription] Result:', data)
+      
       if (data.text) {
-        console.log('Transcription result:', data.text)
         setTranscript(data.text)
+      } else {
+        setError('No speech detected. Please try again.')
       }
     } catch (error) {
-      console.error('Error transcribing audio:', error)
-      setError('Failed to transcribe audio. Please try again.')
+      console.error('[Transcription] Error:', error)
+      setError('Failed to process audio. Please try again.')
     }
   }
 
-  // Force cleanup method for error recovery
+  // Cleanup function for manual recovery
   const forceCleanup = useCallback(() => {
-    cleanup()
-    setState('idle')
+    console.log('[Recording] Force cleanup requested')
+    
+    // Stop everything
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current)
+      durationIntervalRef.current = null
+    }
+    
+    if (mediaRecorderRef.current) {
+      try {
+        if (mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop()
+        }
+      } catch (e) {
+        console.error('[Recording] Error stopping MediaRecorder:', e)
+      }
+      mediaRecorderRef.current = null
+    }
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    
+    // Reset all state
+    setIsRecording(false)
     setError(null)
     setTranscript('')
     setDuration(0)
-  }, [cleanup])
+    chunksRef.current = []
+    
+    console.log('[Recording] Force cleanup complete')
+  }, [])
 
   return {
-    isRecording: state === 'recording',
-    isStarting: state === 'starting',
-    isStopping: state === 'stopping',
+    isRecording,
     transcript,
     duration,
     error,
     startRecording,
     stopRecording,
     forceCleanup,
+    // Expose these for debugging
+    isStarting: false,
+    isStopping: false,
   }
 }

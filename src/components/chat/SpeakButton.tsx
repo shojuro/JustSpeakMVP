@@ -17,14 +17,9 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
     e.preventDefault()
     e.stopPropagation()
     
-    const now = Date.now()
-    if (now - lastActionTime.current < cooldownMs) {
-      console.log('Button cooldown active')
-      return
-    }
+    console.log('[Button] Mouse down, disabled:', disabled, 'isRecording:', isRecording)
     
     if (!disabled && !isRecording) {
-      lastActionTime.current = now
       onStart()
     }
   }
@@ -33,15 +28,16 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
     e.preventDefault()
     e.stopPropagation()
     
+    console.log('[Button] Mouse up, isRecording:', isRecording)
+    
     if (isRecording) {
-      lastActionTime.current = Date.now()
       onStop()
     }
   }
 
   const handleMouseLeave = () => {
+    console.log('[Button] Mouse leave, isRecording:', isRecording)
     if (isRecording) {
-      lastActionTime.current = Date.now()
       onStop()
     }
   }

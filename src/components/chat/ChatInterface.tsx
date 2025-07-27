@@ -289,9 +289,15 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         <div className="max-w-2xl mx-auto">
           <SpeakButton
             isRecording={isRecording}
-            onStart={startRecording}
-            onStop={stopRecording}
-            disabled={isLoading || isStarting || isStopping}
+            onStart={() => {
+              console.log('[ChatInterface] Start recording requested')
+              startRecording()
+            }}
+            onStop={() => {
+              console.log('[ChatInterface] Stop recording requested')
+              stopRecording()
+            }}
+            disabled={isLoading}
           />
           
           {/* Recording states */}
@@ -334,6 +340,23 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
               </button>
             </div>
           )}
+          
+          {/* Debug panel */}
+          <div className="mt-4 p-2 bg-gray-100 rounded text-xs font-mono">
+            <div>Recording: {isRecording ? 'YES' : 'NO'}</div>
+            <div>Loading: {isLoading ? 'YES' : 'NO'}</div>
+            <div>Duration: {duration}s</div>
+            <div>Transcript: {transcript || 'none'}</div>
+            <button
+              onClick={() => {
+                console.log('[Debug] Force cleanup triggered')
+                forceCleanup()
+              }}
+              className="mt-1 text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300"
+            >
+              Force Reset
+            </button>
+          </div>
         </div>
       </div>
     </div>
