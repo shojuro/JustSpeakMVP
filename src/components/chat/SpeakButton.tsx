@@ -86,7 +86,7 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
         onContextMenu={handleContextMenu}
         disabled={disabled}
         className={`
-          relative w-24 h-24 rounded-full flex items-center justify-center
+          relative w-16 h-16 rounded-full flex items-center justify-center
           text-white font-semibold transition-all transform
           ${isRecording 
             ? 'bg-warning scale-110 animate-pulse shadow-lg' 
@@ -97,7 +97,7 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
         `}
       >
         <svg
-          className="w-10 h-10"
+          className="w-8 h-8"
           fill="currentColor"
           viewBox="0 0 20 20"
           xmlns="http://www.w3.org/2000/svg"
@@ -110,7 +110,7 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
         </svg>
       </button>
       
-      <p className="mt-4 text-sm text-text-secondary font-medium">
+      <p className="mt-2 text-xs text-text-secondary">
         {isRecording ? 'Release to send' : 'Hold to speak'}
       </p>
     </div>

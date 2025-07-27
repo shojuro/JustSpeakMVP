@@ -330,9 +330,9 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         </div>
       </div>
 
-      {/* Speaking Interface */}
-      <div className="bg-white border-t border-border-light px-4 py-6">
-        <div className="max-w-2xl mx-auto">
+      {/* Speaking Interface - Compact */}
+      <div className="bg-white border-t border-border-light px-4 py-3">
+        <div className="max-w-2xl mx-auto relative">
           <SpeakButton
             isRecording={isRecording}
             onStart={() => {
@@ -346,88 +346,82 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
             disabled={isLoading || isSpeaking}
           />
           
-          {/* Recording states */}
-          {isStarting && (
-            <div className="text-center mt-4">
-              <p className="text-text-secondary animate-pulse">
-                Starting microphone...
-              </p>
+          {/* Compact recording states */}
+          {(isStarting || isRecording || isStopping) && (
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white rounded-lg shadow-md px-3 py-1 text-xs">
+              {isStarting && (
+                <span className="text-text-secondary animate-pulse">Starting...</span>
+              )}
+              {isRecording && (
+                <span className="text-warning font-medium animate-pulse">Listening {duration}s</span>
+              )}
+              {isStopping && (
+                <span className="text-text-secondary animate-pulse">Processing...</span>
+              )}
             </div>
           )}
           
-          {isRecording && (
-            <div className="text-center mt-4">
-              <p className="text-warning font-medium animate-pulse">
-                Listening... {duration}s
-              </p>
-              <p className="text-sm text-text-muted mt-1">
-                Release to send your message
-              </p>
+          {/* Compact status indicators */}
+          {(isSpeaking || recordingError || voiceError) && (
+            <div className="mt-2 space-y-1">
+              {/* AI Speaking indicator */}
+              {isSpeaking && (
+                <div className="p-2 bg-blue-50 border border-blue-200 rounded flex items-center justify-between text-xs">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 text-blue-600 mr-1 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-blue-700">AI speaking...</span>
+                  </div>
+                  <button
+                    onClick={stopSpeaking}
+                    className="text-blue-700 hover:text-blue-800 underline"
+                  >
+                    Stop
+                  </button>
+                </div>
+              )}
+              
+              {/* Error display */}
+              {(recordingError || voiceError) && (
+                <div className="p-2 bg-red-50 border border-red-200 rounded text-xs">
+                  <p className="text-red-600">{recordingError || voiceError}</p>
+                  <button
+                    onClick={forceCleanup}
+                    className="mt-1 text-red-700 hover:text-red-800 underline"
+                  >
+                    Reset
+                  </button>
+                </div>
+              )}
             </div>
           )}
           
-          {isStopping && (
-            <div className="text-center mt-4">
-              <p className="text-text-secondary animate-pulse">
-                Processing...
-              </p>
-            </div>
-          )}
-          
-          {/* AI Speaking indicator */}
-          {isSpeaking && (
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md flex items-center justify-between">
-              <div className="flex items-center">
-                <svg className="w-5 h-5 text-blue-600 mr-2 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
-                </svg>
-                <p className="text-sm text-blue-700">AI is speaking...</p>
-              </div>
-              <button
-                onClick={stopSpeaking}
-                className="text-sm text-blue-700 hover:text-blue-800 underline"
-              >
-                Stop
-              </button>
-            </div>
-          )}
-          
-          {/* Error display */}
-          {(recordingError || voiceError) && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600">{recordingError || voiceError}</p>
-              <button
-                onClick={forceCleanup}
-                className="mt-2 text-sm text-red-700 hover:text-red-800 underline"
-              >
-                Reset microphone
-              </button>
-            </div>
-          )}
-          
-          {/* Debug panel - collapsible and compact */}
-          <details className="mt-4">
-            <summary className="cursor-pointer text-xs text-gray-600 hover:text-gray-800">
-              Debug Info
-            </summary>
-            <div className="mt-2 p-2 bg-gray-100 rounded text-xs font-mono max-h-32 overflow-y-auto">
-              <div>Recording: {isRecording ? 'YES' : 'NO'}</div>
-              <div>Loading: {isLoading ? 'YES' : 'NO'}</div>
-              <div>Duration: {duration}s</div>
-              <div className="break-words">Transcript: {transcript || 'none'}</div>
-              <button
-                onClick={() => {
-                  console.log('[Debug] Force cleanup triggered')
-                  forceCleanup()
-                }}
-                className="mt-1 text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300"
-              >
-                Force Reset
-              </button>
-            </div>
-          </details>
         </div>
       </div>
+      
+      {/* Floating Debug panel */}
+      <details className="fixed bottom-4 right-4 z-50">
+        <summary className="cursor-pointer text-xs bg-gray-800 text-white px-2 py-1 rounded">
+          Debug
+        </summary>
+        <div className="absolute bottom-full right-0 mb-2 p-2 bg-gray-800 text-white rounded text-xs font-mono max-h-48 overflow-y-auto min-w-[200px]">
+          <div>Recording: {isRecording ? 'YES' : 'NO'}</div>
+          <div>Loading: {isLoading ? 'YES' : 'NO'}</div>
+          <div>Duration: {duration}s</div>
+          <div>Speaking: {isSpeaking ? 'YES' : 'NO'}</div>
+          <div className="break-words">Transcript: {transcript || 'none'}</div>
+          <button
+            onClick={() => {
+              console.log('[Debug] Force cleanup triggered')
+              forceCleanup()
+            }}
+            className="mt-1 text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600 w-full"
+          >
+            Force Reset
+          </button>
+        </div>
+      </details>
     </div>
   )
 }
