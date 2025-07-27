@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const ELEVEN_LABS_API_KEY = process.env.ELEVENLABS_API_KEY
 const VOICE_ID = 'pwMBn0SsmN1220Aorv15' // Matt voice
 
 export async function POST(request: NextRequest) {
   try {
+    // Get API key at runtime
+    const ELEVEN_LABS_API_KEY = process.env.ELEVENLABS_API_KEY
+    
     // Check if API key is configured
     if (!ELEVEN_LABS_API_KEY) {
       console.error('Text-to-speech error: ELEVENLABS_API_KEY not configured')
+      console.error('Available env vars:', Object.keys(process.env).filter(key => key.includes('ELEVEN')))
       return NextResponse.json(
         { error: 'ElevenLabs API key not configured' },
         { status: 500 }
@@ -25,7 +28,10 @@ export async function POST(request: NextRequest) {
 
     console.log('Text-to-speech: Processing text', {
       textLength: text.length,
-      voiceId: VOICE_ID
+      voiceId: VOICE_ID,
+      hasApiKey: !!ELEVEN_LABS_API_KEY,
+      apiKeyLength: ELEVEN_LABS_API_KEY?.length || 0,
+      apiKeyPrefix: ELEVEN_LABS_API_KEY?.substring(0, 10) + '...'
     })
 
     // Call ElevenLabs API
@@ -53,8 +59,24 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('ElevenLabs API error:', response.status, errorText)
-      throw new Error(`ElevenLabs API error: ${response.status}`)
+      console.error('ElevenLabs API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+      
+      // Parse error if it's JSON
+      let errorMessage = `ElevenLabs API error: ${response.status}`
+      try {
+        const errorJson = JSON.parse(errorText)
+        errorMessage = errorJson.detail?.message || errorJson.detail || errorJson.message || errorMessage
+      } catch (e) {
+        // Not JSON, use text
+        errorMessage = errorText || errorMessage
+      }
+      
+      throw new Error(errorMessage)
     }
 
     // Get the audio data

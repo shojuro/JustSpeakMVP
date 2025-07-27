@@ -193,7 +193,10 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
 
       // Speak the AI response if voice is enabled
       if (voiceEnabled) {
+        console.log('[ChatInterface] Speaking AI response:', data.message.substring(0, 50) + '...')
         speak(data.message)
+      } else {
+        console.log('[ChatInterface] Voice disabled, not speaking')
       }
 
       // Update session speaking time in database (only for authenticated users)

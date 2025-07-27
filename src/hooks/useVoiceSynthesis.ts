@@ -41,6 +41,7 @@ export function useVoiceSynthesis() {
 
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('[Voice] API error response:', errorData)
         throw new Error(errorData.error || 'Failed to generate speech')
       }
 
