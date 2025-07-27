@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get conversation history for context (last 10 messages) - only for authenticated users
+    // Get conversation history for context (last 20 messages) - only for authenticated users
     let history = null
     if (!isAnonymous && sessionId !== 'anonymous') {
       const supabase = await createClient()
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         .select('speaker, content')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: false })
-        .limit(10)
+        .limit(20)
       history = data
     }
 
@@ -79,7 +79,7 @@ Your role is to:
     const completion = await openai.chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages,
-      max_tokens: 150,
+      max_tokens: 250,
       temperature: 0.8,
       presence_penalty: 0.6,
       frequency_penalty: 0.3,
