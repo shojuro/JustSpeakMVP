@@ -52,12 +52,16 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
 
   // Handle transcript updates
   useEffect(() => {
-    if (transcript && !isRecording) {
-      console.log('Transcript received:', transcript)
+    console.log('[ChatInterface] Transcript update - transcript:', transcript, 'isRecording:', isRecording)
+    if (transcript && transcript.trim().length > 0 && !isRecording) {
+      console.log('[ChatInterface] Processing transcript:', transcript)
       // Add validation to prevent spam messages
-      if (transcript.toLowerCase().includes('engvid.com') || 
-          transcript.toLowerCase().includes('learn english for free')) {
-        console.error('Suspicious transcript blocked:', transcript)
+      const lowerTranscript = transcript.toLowerCase()
+      if (lowerTranscript.includes('engvid.com') || 
+          lowerTranscript.includes('learn english for free') ||
+          lowerTranscript.includes('www.') ||
+          lowerTranscript.includes('.com')) {
+        console.error('[ChatInterface] Suspicious transcript blocked:', transcript)
         return
       }
       handleSendMessage(transcript)

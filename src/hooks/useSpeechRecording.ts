@@ -25,51 +25,128 @@ export function useSpeechRecording() {
 
     try {
       console.log('[Recording] Requesting microphone access...')
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      })
       streamRef.current = stream
       console.log('[Recording] Microphone access granted')
+      
+      // Verify audio stream is active
+      const audioTracks = stream.getAudioTracks()
+      console.log('[Recording] Audio tracks:', audioTracks.length)
+      audioTracks.forEach((track, index) => {
+        console.log(`[Recording] Track ${index}:`, {
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+          settings: track.getSettings()
+        })
+      })
+      
+      // Check if we have active audio tracks
+      if (audioTracks.length === 0 || !audioTracks.some(track => track.enabled && track.readyState === 'live')) {
+        throw new Error('No active audio tracks found')
+      }
 
-      // Create MediaRecorder
-      const mediaRecorder = new MediaRecorder(stream)
+      // Determine best MIME type
+      let mimeType = 'audio/webm'
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus'
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        mimeType = 'audio/webm'
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4'
+      }
+      console.log('[Recording] Using MIME type:', mimeType)
+
+      // Create MediaRecorder with options
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: mimeType,
+        audioBitsPerSecond: 128000
+      })
       mediaRecorderRef.current = mediaRecorder
 
+      // Set up event handlers BEFORE starting
+      mediaRecorder.onstart = () => {
+        console.log('[Recording] MediaRecorder started successfully')
+        console.log('[Recording] State:', mediaRecorder.state)
+        console.log('[Recording] MIME type:', mediaRecorder.mimeType)
+      }
+
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        console.log('[Recording] Data available event fired!')
+        console.log('[Recording] Event data size:', event.data?.size || 0)
+        console.log('[Recording] Event data type:', event.data?.type || 'unknown')
+        
+        if (event.data && event.data.size > 0) {
           chunksRef.current.push(event.data)
-          console.log('[Recording] Data chunk received, size:', event.data.size)
+          console.log('[Recording] Data chunk received and stored')
+          console.log('[Recording] Total chunks collected:', chunksRef.current.length)
+          console.log('[Recording] Chunk sizes:', chunksRef.current.map(c => c.size))
+        } else {
+          console.warn('[Recording] Empty data chunk received')
         }
       }
 
       mediaRecorder.onstop = async () => {
         console.log('[Recording] MediaRecorder stopped')
+        console.log('[Recording] Final state:', mediaRecorder.state)
+        console.log('[Recording] Total chunks collected:', chunksRef.current.length)
         
-        // Stop all tracks
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => {
-            track.stop()
-            console.log('[Recording] Track stopped:', track.label)
-          })
-          streamRef.current = null
-        }
-
         // Process audio if we have data
         if (chunksRef.current.length > 0) {
-          console.log('[Recording] Processing', chunksRef.current.length, 'audio chunks')
-          const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' })
+          console.log('[Recording] Creating blob from chunks...')
+          const totalSize = chunksRef.current.reduce((acc, chunk) => acc + chunk.size, 0)
+          console.log('[Recording] Total data size:', totalSize)
+          
+          const audioBlob = new Blob(chunksRef.current, { type: mimeType })
+          console.log('[Recording] Blob created successfully')
+          console.log('[Recording] Blob size:', audioBlob.size)
+          console.log('[Recording] Blob type:', audioBlob.type)
+          
+          // Stop tracks after creating blob
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => {
+              track.stop()
+              console.log('[Recording] Track stopped:', track.label)
+            })
+            streamRef.current = null
+          }
+          
           await transcribeAudio(audioBlob)
+        } else {
+          console.error('[Recording] No audio chunks collected!')
+          console.log('[Recording] MediaRecorder state at stop:', mediaRecorder.state)
+          setError('No audio was recorded. Please check microphone permissions.')
+          
+          // Still stop tracks
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop())
+            streamRef.current = null
+          }
         }
 
         setIsRecording(false)
       }
 
       mediaRecorder.onerror = (event: any) => {
-        console.error('[Recording] MediaRecorder error:', event)
-        setError('Recording failed. Please try again.')
+        console.error('[Recording] MediaRecorder error event:', event)
+        console.error('[Recording] Error type:', event.error?.name)
+        console.error('[Recording] Error message:', event.error?.message)
+        setError('Recording failed: ' + (event.error?.message || 'Unknown error'))
         stopRecording()
       }
 
-      // Start recording
-      mediaRecorder.start()
+      // Force data collection by requesting data before starting
+      console.log('[Recording] Starting MediaRecorder with 100ms timeslice...')
+      
+      // Start recording with shorter timeslice for more frequent data collection
+      mediaRecorder.start(100) // Capture data every 100ms
       setIsRecording(true)
       
       // Start duration tracking
@@ -79,7 +156,21 @@ export function useSpeechRecording() {
         setDuration(elapsed)
       }, 100)
 
-      console.log('[Recording] Started successfully')
+      // Periodically request data to ensure collection
+      const dataRequestInterval = setInterval(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          console.log('[Recording] Periodic data request...')
+          try {
+            mediaRecorderRef.current.requestData()
+          } catch (e) {
+            console.error('[Recording] Error in periodic data request:', e)
+          }
+        } else {
+          clearInterval(dataRequestInterval)
+        }
+      }, 500) // Request data every 500ms
+
+      console.log('[Recording] Started successfully with periodic data collection')
     } catch (error: any) {
       console.error('[Recording] Failed to start:', error)
       
@@ -102,6 +193,8 @@ export function useSpeechRecording() {
 
   const stopRecording = useCallback(() => {
     console.log('[Recording] Stop requested')
+    console.log('[Recording] Current MediaRecorder state:', mediaRecorderRef.current?.state)
+    console.log('[Recording] Current chunks count:', chunksRef.current.length)
     
     // Clear duration interval
     if (durationIntervalRef.current) {
@@ -111,9 +204,24 @@ export function useSpeechRecording() {
 
     // Stop media recorder if it exists and is recording
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      console.log('[Recording] Stopping MediaRecorder...')
-      mediaRecorderRef.current.stop()
-      mediaRecorderRef.current = null
+      console.log('[Recording] Requesting data before stopping...')
+      
+      // Force data collection by requesting data
+      try {
+        mediaRecorderRef.current.requestData()
+        console.log('[Recording] Data requested successfully')
+      } catch (e) {
+        console.error('[Recording] Error requesting data:', e)
+      }
+      
+      // Small delay to allow data collection before stopping
+      setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          console.log('[Recording] Now stopping MediaRecorder...')
+          mediaRecorderRef.current.stop()
+          mediaRecorderRef.current = null
+        }
+      }, 50)
     } else {
       console.log('[Recording] MediaRecorder not recording, cleaning up...')
       // If not recording, still clean up
