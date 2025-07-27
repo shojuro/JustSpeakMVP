@@ -11,7 +11,7 @@ interface SpeakButtonProps {
 
 export default function SpeakButton({ isRecording, onStart, onStop, disabled }: SpeakButtonProps) {
   const lastActionTime = useRef<number>(0)
-  const cooldownMs = 300 // Minimum time between actions
+  const cooldownMs = 150 // Minimum time between actions (reduced for better responsiveness)
   
   const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault()
