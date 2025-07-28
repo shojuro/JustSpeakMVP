@@ -92,6 +92,8 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   const createOrGetSession = async () => {
     if (!user) return
 
+    console.log('[ChatInterface] Creating or getting session for user:', user.id)
+
     try {
       // Check for existing active session
       const { data: existingSessions, error: fetchError } = await supabase
@@ -102,26 +104,35 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         .order('created_at', { ascending: false })
         .limit(1)
 
-      if (fetchError) throw fetchError
+      if (fetchError) {
+        console.error('[ChatInterface] Error fetching sessions:', fetchError)
+        throw fetchError
+      }
 
       if (existingSessions && existingSessions.length > 0) {
         // Use existing session
+        console.log('[ChatInterface] Using existing session:', existingSessions[0].id)
         setSession(existingSessions[0])
         setTotalSpeakingTime(existingSessions[0].total_speaking_time)
         await loadMessages(existingSessions[0].id)
       } else {
         // Create new session
+        console.log('[ChatInterface] Creating new session')
         const { data: newSession, error: createError } = await supabase
           .from('sessions')
           .insert({ user_id: user.id })
           .select()
           .single()
 
-        if (createError) throw createError
+        if (createError) {
+          console.error('[ChatInterface] Error creating session:', createError)
+          throw createError
+        }
+        console.log('[ChatInterface] New session created:', newSession.id)
         setSession(newSession)
       }
     } catch (error) {
-      console.error('Error managing session:', error)
+      console.error('[ChatInterface] Error managing session:', error)
     }
   }
 
@@ -144,7 +155,17 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return
-    if (!isAnonymous && !session) return // Only require session for authenticated users
+    if (!isAnonymous && !session) {
+      console.error('[ChatInterface] No session available for authenticated user')
+      return
+    }
+
+    console.log('[ChatInterface] Sending message:', {
+      textLength: text.length,
+      sessionId: session?.id || 'anonymous',
+      userId: user?.id || 'anonymous',
+      isAnonymous
+    })
 
     setIsLoading(true)
     const userMessage: Message = {

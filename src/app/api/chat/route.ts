@@ -11,6 +11,13 @@ export async function POST(request: NextRequest) {
   try {
     const { message, sessionId, userId, isAnonymous } = await request.json()
 
+    console.log('[Chat API] Request received:', {
+      messageLength: message?.length,
+      sessionId,
+      userId,
+      isAnonymous
+    })
+
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
@@ -21,6 +28,7 @@ export async function POST(request: NextRequest) {
     // For anonymous users, skip session verification
     if (!isAnonymous) {
       if (!sessionId) {
+        console.error('[Chat API] Missing sessionId for authenticated user')
         return NextResponse.json(
           { error: 'SessionId is required for authenticated users' },
           { status: 400 }
@@ -35,7 +43,19 @@ export async function POST(request: NextRequest) {
         .eq('id', sessionId)
         .single()
 
+      console.log('[Chat API] Session verification:', {
+        sessionError: sessionError?.message,
+        sessionUserId: session?.user_id,
+        requestUserId: userId,
+        match: session?.user_id === userId
+      })
+
       if (sessionError || !session || session.user_id !== userId) {
+        console.error('[Chat API] Session verification failed:', {
+          error: sessionError?.message,
+          hasSession: !!session,
+          userIdMatch: session?.user_id === userId
+        })
         return NextResponse.json({ error: 'Invalid session' }, { status: 403 })
       }
     }
@@ -83,6 +103,13 @@ Your role is to:
     messages.push({ role: 'user', content: sanitizedMessage })
 
     // Get AI response
+    console.log('[Chat API] Calling OpenAI with', messages.length, 'messages')
+    
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('[Chat API] OPENAI_API_KEY not configured')
+      return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 })
+    }
+
     const completion = await openai.chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages,
@@ -96,9 +123,13 @@ Your role is to:
       completion.choices[0]?.message?.content ||
       "I'm sorry, I didn't catch that. Could you please repeat?"
 
+    console.log('[Chat API] OpenAI response received:', aiResponse.substring(0, 50) + '...')
+
     // Save both messages to database (only for authenticated users)
     if (!isAnonymous && sessionId !== 'anonymous') {
       const supabase = await createClient()
+      
+      console.log('[Chat API] Saving messages to database for session:', sessionId)
       
       // Insert user message
       const { data: userMessage, error: userInsertError } = await supabase
@@ -112,7 +143,12 @@ Your role is to:
         .single()
 
       if (userInsertError) {
-        console.error('Error saving user message:', userInsertError)
+        console.error('[Chat API] Error saving user message:', {
+          error: userInsertError.message,
+          code: userInsertError.code,
+          details: userInsertError.details
+        })
+        // Don't fail the whole request if message saving fails
       }
 
       // Insert AI message
@@ -125,37 +161,66 @@ Your role is to:
         })
 
       if (aiInsertError) {
-        console.error('Error saving AI message:', aiInsertError)
+        console.error('[Chat API] Error saving AI message:', {
+          error: aiInsertError.message,
+          code: aiInsertError.code,
+          details: aiInsertError.details
+        })
       }
 
       // Check if we should analyze this message (every 3rd message)
       if (userMessage && userId) {
-        const { count } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('session_id', sessionId)
-          .eq('speaker', 'USER')
+        try {
+          const { count } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('session_id', sessionId)
+            .eq('speaker', 'USER')
 
-        if (count && count % 3 === 0) {
-          // Trigger error analysis in the background
-          fetch('/api/analyze-errors', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              messageId: userMessage.id,
-              userId,
-              sessionId,
-              content: sanitizedMessage,
-              duration: 0, // Duration will be added when we implement it
-            }),
-          }).catch(err => console.error('Error analysis failed:', err))
+          console.log('[Chat API] Message count for error analysis:', count)
+
+          if (count && count % 3 === 0) {
+            console.log('[Chat API] Triggering error analysis for message', userMessage.id)
+            // Trigger error analysis in the background
+            // Use absolute URL for server-side fetch
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${request.headers.get('host')}`
+            fetch(`${baseUrl}/api/analyze-errors`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messageId: userMessage.id,
+                userId,
+                sessionId,
+                content: sanitizedMessage,
+                duration: 0, // Duration will be added when we implement it
+              }),
+            }).catch(err => console.error('[Chat API] Error analysis failed:', err))
+          }
+        } catch (error) {
+          console.error('[Chat API] Error checking for analysis trigger:', error)
         }
       }
     }
 
     return NextResponse.json({ message: aiResponse })
-  } catch (error) {
-    console.error('Chat API error:', error)
+  } catch (error: any) {
+    console.error('[Chat API] Fatal error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      status: error.status
+    })
+    
+    // Check for specific OpenAI errors
+    if (error.status === 401) {
+      return NextResponse.json({ error: 'Invalid OpenAI API key' }, { status: 500 })
+    }
+    
+    if (error.status === 429) {
+      return NextResponse.json({ error: 'OpenAI rate limit exceeded' }, { status: 429 })
+    }
+    
     return NextResponse.json({ error: 'Failed to process chat message' }, { status: 500 })
   }
 }
