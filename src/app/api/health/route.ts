@@ -5,6 +5,7 @@ export async function GET() {
   const diagnostics: Record<string, any> = {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
+    deploymentTimestamp: '2025-07-29T02:47:00+07:00', // Force redeployment
   }
 
   // Check environment variables (safely)
