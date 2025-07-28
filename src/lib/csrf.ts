@@ -27,9 +27,16 @@ export function validateCSRFToken(request: NextRequest): boolean {
     return true
   }
 
-  // Skip CSRF for API routes that are public (like time check)
+  // Skip CSRF for API routes that are public or don't need CSRF protection
   const pathname = request.nextUrl.pathname
-  const publicApiRoutes = ['/api/time']
+  const publicApiRoutes = [
+    '/api/time',
+    '/api/chat', // Chat endpoint validates sessions internally
+    '/api/speech-to-text', // Speech endpoint validates sessions internally
+    '/api/diagnostics',
+    '/api/health',
+    '/api/test'
+  ]
   if (publicApiRoutes.some((route) => pathname.startsWith(route))) {
     return true
   }

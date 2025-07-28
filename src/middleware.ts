@@ -72,6 +72,8 @@ export async function middleware(request: NextRequest) {
       // Validate CSRF
       const isValid = validateCSRFToken(request)
       if (!isValid) {
+        console.log('[Middleware] CSRF validation failed for:', path, 'Method:', request.method)
+        
         // Log CSRF validation failure
         logSecurityViolation(SecurityEventType.CSRF_VALIDATION_FAILURE, request, {
           path,

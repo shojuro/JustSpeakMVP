@@ -277,7 +277,3 @@ Your role is to:
   }
 }
 
-// Add OPTIONS handler for CORS
-export async function OPTIONS(request: NextRequest) {
-  return new NextResponse(null, { status: 200 })
-}
