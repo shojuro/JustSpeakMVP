@@ -88,7 +88,7 @@ export const rateLimiters = {
   // Rate limit for speech endpoints
   speech: createRateLimiter({
     windowMs: 1 * 60 * 1000, // 1 minute
-    max: 10,
+    max: 60, // Allow 60 requests per minute for active conversation
   }),
 
   // Rate limit for anonymous users (stricter)
