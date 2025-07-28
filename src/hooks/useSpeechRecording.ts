@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
+import { apiFetch } from '@/lib/api'
 
 export function useSpeechRecording() {
   const [isRecording, setIsRecording] = useState(false)
@@ -251,7 +252,7 @@ export function useSpeechRecording() {
       const formData = new FormData()
       formData.append('audio', audioBlob, 'recording.webm')
 
-      const response = await fetch('/api/speech-to-text', {
+      const response = await apiFetch('/api/speech-to-text', {
         method: 'POST',
         body: formData,
       })

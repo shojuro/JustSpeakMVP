@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { validateAudioFile, sanitizeFileName } from '@/lib/fileValidation'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -26,8 +27,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate the audio file
+    const validation = await validateAudioFile(audioFile)
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error || 'Invalid audio file' },
+        { status: 400 }
+      )
+    }
+
     console.log('Speech-to-text: Processing audio file', {
-      name: audioFile.name,
+      name: sanitizeFileName(audioFile.name),
       size: audioFile.size,
       type: audioFile.type
     })
@@ -37,8 +47,8 @@ export async function POST(request: NextRequest) {
     
     // Create a File object for OpenAI with the correct extension
     // Whisper API accepts: mp3, mp4, mpeg, mpga, m4a, wav, webm
-    const fileName = audioFile.type.includes('webm') ? 'audio.webm' : 'audio.wav'
-    const file = new File([buffer], fileName, { type: audioFile.type || 'audio/webm' })
+    const sanitizedName = sanitizeFileName(audioFile.name)
+    const file = new File([buffer], sanitizedName, { type: audioFile.type || 'audio/webm' })
 
     // Use OpenAI Whisper API for transcription
     const transcription = await openai.audio.transcriptions.create({

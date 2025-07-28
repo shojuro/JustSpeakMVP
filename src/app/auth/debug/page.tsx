@@ -4,8 +4,14 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/AuthProvider'
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { isDebugEnabled } from '@/lib/env'
 
 export default function AuthDebugPage() {
+  // Block access in production unless explicitly enabled
+  if (!isDebugEnabled()) {
+    notFound()
+  }
   const { user } = useAuth()
   const [session, setSession] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -177,14 +183,7 @@ export default function AuthDebugPage() {
                 </div>
               </div>
               
-              <details className="mt-4">
-                <summary className="cursor-pointer text-text-secondary hover:text-text-primary">
-                  View Full Session (Debug)
-                </summary>
-                <pre className="mt-2 p-4 bg-gray-100 rounded text-xs overflow-auto">
-                  {JSON.stringify(session, null, 2)}
-                </pre>
-              </details>
+              {/* Removed full session details for security */}
             </div>
           )}
 
@@ -196,26 +195,7 @@ export default function AuthDebugPage() {
             </div>
           )}
 
-          {/* Cookies */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">Cookies</h2>
-            <div className="space-y-2">
-              {cookies ? (
-                <div className="font-mono text-xs bg-gray-100 p-4 rounded overflow-auto">
-                  {cookies.split(';').map((cookie, idx) => (
-                    <div key={idx} className="mb-1">
-                      {cookie.trim()}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-text-secondary">No cookies found</p>
-              )}
-            </div>
-            <div className="mt-4 text-sm text-text-secondary">
-              <p>Looking for cookies starting with: <code className="bg-gray-100 px-1">sb-</code></p>
-            </div>
-          </div>
+          {/* Removed cookie display for security */}
 
           {/* Auth Logs */}
           <div className="bg-white rounded-lg shadow p-6">

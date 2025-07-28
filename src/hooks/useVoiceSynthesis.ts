@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
+import { apiFetch } from '@/lib/api'
 
 export function useVoiceSynthesis() {
   const [isSpeaking, setIsSpeaking] = useState(false)
@@ -30,11 +31,8 @@ export function useVoiceSynthesis() {
       console.log('[Voice] Requesting speech synthesis for text:', text.substring(0, 50) + '...')
 
       // Call the text-to-speech API
-      const response = await fetch('/api/text-to-speech', {
+      const response = await apiFetch('/api/text-to-speech', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ text }),
         signal: abortControllerRef.current.signal,
       })

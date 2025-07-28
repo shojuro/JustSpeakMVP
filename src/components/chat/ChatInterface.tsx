@@ -9,6 +9,7 @@ import SpeakButton from './SpeakButton'
 import SpeakingTimer from './SpeakingTimer'
 import { useSpeechRecording } from '@/hooks/useSpeechRecording'
 import { useVoiceSynthesis } from '@/hooks/useVoiceSynthesis'
+import { apiFetch } from '@/lib/api'
 import type { Message, Session } from '@/types/chat'
 
 interface ChatInterfaceProps {
@@ -162,11 +163,8 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
 
     try {
       // Call OpenAI via API route
-      const response = await fetch('/api/chat', {
+      const response = await apiFetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           message: text,
           sessionId: session?.id || 'anonymous',
