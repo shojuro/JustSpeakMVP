@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { validateAudioFile, sanitizeFileName } from '@/lib/fileValidation'
+import { SecurityEventType, logSecurityViolation, logAuthEvent } from '@/lib/securityLogger'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -24,6 +25,13 @@ export async function POST(request: NextRequest) {
     // Validate the audio file
     const validation = await validateAudioFile(audioFile)
     if (!validation.valid) {
+      // Log file validation failure
+      logSecurityViolation(SecurityEventType.FILE_VALIDATION_FAILURE, request, {
+        fileName: sanitizeFileName(audioFile.name),
+        fileSize: audioFile.size,
+        fileType: audioFile.type,
+        error: validation.error,
+      })
       return NextResponse.json({ error: validation.error || 'Invalid audio file' }, { status: 400 })
     }
 

@@ -16,6 +16,8 @@
   "dependencies": {
     "@supabase/ssr": "^0.0.10",
     "@supabase/supabase-js": "^2.39.1",
+    "@types/dompurify": "^3.0.5",
+    "isomorphic-dompurify": "^2.26.0",
     "next": "^15.4.4",
     "openai": "^4.24.1",
     "react": "^19.1.0",

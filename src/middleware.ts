@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { generateCSRFToken, validateCSRFToken, getCSRFToken } from '@/lib/csrf'
 import { rateLimiters } from '@/lib/rateLimit'
+import { SecurityEventType, logSecurityViolation } from '@/lib/securityLogger'
 
 export async function middleware(request: NextRequest) {
   try {
@@ -35,6 +36,13 @@ export async function middleware(request: NextRequest) {
       const { success, limit, remaining, reset } = await rateLimiter(request)
 
       if (!success) {
+        // Log rate limit violation
+        logSecurityViolation(SecurityEventType.RATE_LIMIT_EXCEEDED, request, {
+          path,
+          limit,
+          endpoint: path.startsWith('/api/auth') ? 'auth' : path.startsWith('/api/speech') ? 'speech' : 'api',
+        })
+
         return new NextResponse(JSON.stringify({ error: 'Too many requests' }), {
           status: 429,
           headers: {
@@ -51,6 +59,12 @@ export async function middleware(request: NextRequest) {
     // Validate CSRF
     const isValid = validateCSRFToken(request)
     if (!isValid) {
+      // Log CSRF validation failure
+      logSecurityViolation(SecurityEventType.CSRF_VALIDATION_FAILURE, request, {
+        path,
+        method: request.method,
+      })
+
       return new NextResponse(JSON.stringify({ error: 'Invalid CSRF token' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' },

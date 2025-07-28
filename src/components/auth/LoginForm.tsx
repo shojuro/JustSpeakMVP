@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { isClockSkewError } from '@/lib/clockSkew'
 import Link from 'next/link'
+import { sanitizeEmail, escapeHTML } from '@/lib/sanitization'
 
 export default function LoginForm() {
   const { signIn } = useAuth()
@@ -26,7 +27,15 @@ export default function LoginForm() {
     setLoading(true)
 
     try {
-      const { error } = await signIn(email, password)
+      // Sanitize email before submission
+      const sanitizedEmail = sanitizeEmail(email)
+      if (!sanitizedEmail) {
+        setError('Please enter a valid email address')
+        setLoading(false)
+        return
+      }
+
+      const { error } = await signIn(sanitizedEmail, password)
       if (error) {
         // Handle specific error cases
         if (isClockSkewError(error)) {

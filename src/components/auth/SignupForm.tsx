@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import Link from 'next/link'
+import { sanitizeEmail, escapeHTML } from '@/lib/sanitization'
 
 export default function SignupForm() {
   const { signUp } = useAuth()
@@ -45,7 +46,15 @@ export default function SignupForm() {
     setLoading(true)
 
     try {
-      const { error } = await signUp(email, password)
+      // Sanitize email before submission
+      const sanitizedEmail = sanitizeEmail(email)
+      if (!sanitizedEmail) {
+        setError('Please enter a valid email address')
+        setLoading(false)
+        return
+      }
+
+      const { error } = await signUp(sanitizedEmail, password)
       if (error) {
         setError(error.message)
         setDebugInfo(`Signup failed: ${error.message}`)
@@ -98,7 +107,7 @@ export default function SignupForm() {
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-error">{error}</p>
+            <p className="text-sm text-error" dangerouslySetInnerHTML={{ __html: escapeHTML(error) }} />
           </div>
         )}
 

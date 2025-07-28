@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
+import { sanitizeText } from '@/lib/sanitization'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -13,6 +14,9 @@ export async function POST(request: NextRequest) {
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
+
+    // Sanitize user input
+    const sanitizedMessage = sanitizeText(message)
 
     // For anonymous users, skip session verification
     if (!isAnonymous) {
@@ -76,7 +80,7 @@ Your role is to:
     }
 
     // Add current message
-    messages.push({ role: 'user', content: message })
+    messages.push({ role: 'user', content: sanitizedMessage })
 
     // Get AI response
     const completion = await openai.chat.completions.create({
@@ -99,7 +103,7 @@ Your role is to:
         {
           session_id: sessionId,
           speaker: 'USER',
-          content: message,
+          content: sanitizedMessage,
         },
         {
           session_id: sessionId,
