@@ -69,8 +69,19 @@ export async function middleware(request: NextRequest) {
   let csrfToken = getCSRFToken(request)
   if (!csrfToken) {
     csrfToken = generateCSRFToken()
+    // Set httpOnly cookie for server-side validation
     response.cookies.set('csrf-token', csrfToken, {
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    })
+  }
+  
+  // Always ensure client-accessible token is set
+  if (csrfToken) {
+    response.cookies.set('csrf-token-client', csrfToken, {
+      httpOnly: false, // Allow JavaScript access
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',

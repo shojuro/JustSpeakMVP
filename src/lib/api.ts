@@ -3,9 +3,9 @@
  */
 
 function getCSRFToken(): string | null {
-  // Get CSRF token from cookie
+  // Get CSRF token from client-accessible cookie
   const cookies = document.cookie.split(';')
-  const csrfCookie = cookies.find((cookie) => cookie.trim().startsWith('csrf-token='))
+  const csrfCookie = cookies.find((cookie) => cookie.trim().startsWith('csrf-token-client='))
   if (csrfCookie) {
     return csrfCookie.split('=')[1]
   }
