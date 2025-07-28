@@ -42,5 +42,11 @@ export async function apiFetch(url: string, options: FetchOptions = {}) {
     }
   }
 
+  // Add cache control headers to prevent stale deployments
+  fetchOptions.headers = {
+    ...fetchOptions.headers,
+    'Cache-Control': 'no-cache',
+  }
+
   return fetch(url, fetchOptions)
 }
