@@ -14,6 +14,9 @@ export async function middleware(request: NextRequest) {
       path.startsWith('/favicon') ||
       path === '/manifest.json' ||
       path === '/sw.js' ||
+      path.endsWith('.png') ||
+      path.endsWith('.jpg') ||
+      path.endsWith('.svg') ||
       (path.includes('.') && !path.startsWith('/api'))
     ) {
       return NextResponse.next()

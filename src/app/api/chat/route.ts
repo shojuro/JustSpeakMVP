@@ -37,7 +37,9 @@ export async function POST(request: NextRequest) {
     console.log('[Chat API] Request received:', {
       messageLength: message?.length,
       sessionId,
+      sessionIdLength: sessionId?.length,
       userId,
+      userIdLength: userId?.length,
       isAnonymous,
       headers: Object.fromEntries(request.headers.entries())
     })
@@ -60,6 +62,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Verify user owns the session
+      console.log('[Chat API] About to query session with ID:', sessionId, 'Length:', sessionId.length)
+      
       const supabase = await createClient()
       const { data: sessions, error: sessionError } = await supabase
         .from('sessions')
@@ -80,7 +84,9 @@ export async function POST(request: NextRequest) {
       }
 
       if (!sessions || sessions.length === 0) {
-        console.error('[Chat API] No session found for ID:', sessionId)
+        console.error('[Chat API] No session found')
+        console.error('[Chat API] Session ID:', sessionId)
+        console.error('[Chat API] Full session ID length:', sessionId?.length || 0)
         return NextResponse.json({ error: 'Session not found' }, { status: 404 })
       }
 
