@@ -164,7 +164,9 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       textLength: text.length,
       sessionId: session?.id || 'anonymous',
       userId: user?.id || 'anonymous',
-      isAnonymous
+      isAnonymous,
+      hasSession: !!session,
+      sessionDetails: session ? { id: session.id, userId: session.user_id } : null
     })
 
     setIsLoading(true)

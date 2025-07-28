@@ -37,24 +37,46 @@ export async function POST(request: NextRequest) {
 
       // Verify user owns the session
       const supabase = await createClient()
-      const { data: session, error: sessionError } = await supabase
+      const { data: sessions, error: sessionError } = await supabase
         .from('sessions')
         .select('user_id')
         .eq('id', sessionId)
-        .single()
+
+      console.log('[Chat API] Session query result:', {
+        sessionError: sessionError?.message,
+        sessionCount: sessions?.length || 0,
+        sessionId,
+        userId
+      })
+
+      // Handle the case where .single() would fail
+      if (sessionError) {
+        console.error('[Chat API] Session query error:', sessionError)
+        return NextResponse.json({ error: 'Failed to verify session' }, { status: 500 })
+      }
+
+      if (!sessions || sessions.length === 0) {
+        console.error('[Chat API] No session found for ID:', sessionId)
+        return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+      }
+
+      if (sessions.length > 1) {
+        console.error('[Chat API] Multiple sessions found for ID:', sessionId, 'Count:', sessions.length)
+        // Use the first one but log the issue
+      }
+
+      const session = sessions[0]
 
       console.log('[Chat API] Session verification:', {
-        sessionError: sessionError?.message,
         sessionUserId: session?.user_id,
         requestUserId: userId,
         match: session?.user_id === userId
       })
 
-      if (sessionError || !session || session.user_id !== userId) {
-        console.error('[Chat API] Session verification failed:', {
-          error: sessionError?.message,
-          hasSession: !!session,
-          userIdMatch: session?.user_id === userId
+      if (session.user_id !== userId) {
+        console.error('[Chat API] Session user mismatch:', {
+          sessionUserId: session.user_id,
+          requestUserId: userId
         })
         return NextResponse.json({ error: 'Invalid session' }, { status: 403 })
       }
