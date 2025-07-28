@@ -1,6 +1,7 @@
 # Deployment Steps - Action Required
 
 ## Current Status
+
 ✅ Code has been pushed to main branch
 ✅ Security keys have been generated
 ✅ Environment variables documented
@@ -8,6 +9,7 @@
 ## 1. Vercel Dashboard Actions
 
 ### Add Environment Variables
+
 1. Go to your Vercel project: https://vercel.com/dashboard
 2. Navigate to Settings → Environment Variables
 3. Add these variables (copy values from your .env file):
@@ -23,6 +25,7 @@
 5. Click "Save"
 
 ### Trigger Redeployment
+
 1. Go to the Deployments tab
 2. Find the latest deployment
 3. Click the three dots → "Redeploy"
@@ -31,6 +34,7 @@
 ## 2. Supabase Dashboard Actions
 
 ### Update Redirect URLs
+
 1. Go to https://app.supabase.com
 2. Select your project
 3. Navigate to Authentication → URL Configuration
@@ -44,10 +48,12 @@
 ### Email Configuration (Choose One)
 
 #### Option A: Quick Testing (Manual Confirmation)
+
 - Go to Authentication → Users
 - Manually confirm users by clicking the three dots → "Confirm email"
 
 #### Option B: Production Ready (Custom SMTP)
+
 1. Sign up for SendGrid (100 emails/day free)
 2. Go to Authentication → Settings → SMTP Settings
 3. Enable "Custom SMTP" and enter:
@@ -61,6 +67,7 @@
 ## 3. Verify Deployment
 
 Once redeployed, test these URLs:
+
 1. Homepage: https://just-speak-mvp-7uhu.vercel.app
 2. System Check: https://just-speak-mvp-7uhu.vercel.app/system-check
 3. Auth Debug: https://just-speak-mvp-7uhu.vercel.app/auth/debug

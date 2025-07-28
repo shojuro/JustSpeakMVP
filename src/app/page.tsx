@@ -28,19 +28,17 @@ export default function HomePage() {
     <main className="min-h-screen bg-gradient-to-b from-bg-secondary to-white">
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl font-bold text-text-primary mb-6">
-            Speak English Confidently
-          </h1>
+          <h1 className="text-5xl font-bold text-text-primary mb-6">Speak English Confidently</h1>
           <p className="text-xl text-text-secondary mb-8">
-            Practice speaking English 24/7 with AI conversation partners. 
-            Track your speaking time and build confidence one conversation at a time.
+            Practice speaking English 24/7 with AI conversation partners. Track your speaking time
+            and build confidence one conversation at a time.
           </p>
           <div className="flex gap-4 justify-center">
             <Link href="/chat" className="btn-primary">
               Start Speaking Now
             </Link>
             {user ? (
-              <button 
+              <button
                 onClick={async () => {
                   await supabase.auth.signOut()
                   router.refresh()
@@ -55,7 +53,7 @@ export default function HomePage() {
               </Link>
             )}
           </div>
-          
+
           <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="text-4xl mb-4">🎤</div>
@@ -64,7 +62,7 @@ export default function HomePage() {
                 Simple one-button interface. Just hold and speak naturally.
               </p>
             </div>
-            
+
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="text-4xl mb-4">⏱️</div>
               <h3 className="text-lg font-semibold mb-2">Track Progress</h3>
@@ -72,7 +70,7 @@ export default function HomePage() {
                 Monitor your speaking time and see your improvement over time.
               </p>
             </div>
-            
+
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="text-4xl mb-4">🤖</div>
               <h3 className="text-lg font-semibold mb-2">AI Partners</h3>
@@ -84,7 +82,10 @@ export default function HomePage() {
 
           {/* Debug info for production */}
           <div className="mt-12 pt-8 border-t text-xs text-gray-500">
-            <p>Auth state: {loading ? 'Loading...' : user ? `Logged in as ${user.email}` : 'Not logged in'}</p>
+            <p>
+              Auth state:{' '}
+              {loading ? 'Loading...' : user ? `Logged in as ${user.email}` : 'Not logged in'}
+            </p>
             <div className="mt-2">
               <Link href="/auth/debug" className="text-gray-500 hover:text-gray-700 mr-4">
                 Auth Debug

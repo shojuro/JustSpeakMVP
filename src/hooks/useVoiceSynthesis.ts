@@ -74,7 +74,6 @@ export function useVoiceSynthesis() {
 
       // Play the audio
       await audio.play()
-
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('[Voice] Speech synthesis aborted')
@@ -88,7 +87,7 @@ export function useVoiceSynthesis() {
 
   const stop = useCallback(() => {
     console.log('[Voice] Stopping speech')
-    
+
     // Abort any ongoing API request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()

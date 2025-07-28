@@ -17,7 +17,10 @@ export async function POST(request: NextRequest) {
     // For anonymous users, skip session verification
     if (!isAnonymous) {
       if (!sessionId) {
-        return NextResponse.json({ error: 'SessionId is required for authenticated users' }, { status: 400 })
+        return NextResponse.json(
+          { error: 'SessionId is required for authenticated users' },
+          { status: 400 }
+        )
       }
 
       // Verify user owns the session

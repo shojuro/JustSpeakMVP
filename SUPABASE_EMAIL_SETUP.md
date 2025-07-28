@@ -3,6 +3,7 @@
 ## The Issue
 
 You're not receiving confirmation emails because Supabase's free tier has strict email limitations:
+
 - Only 3 emails per hour
 - Default SMTP is for development only
 - Production requires custom SMTP configuration
@@ -51,6 +52,7 @@ You're not receiving confirmation emails because Supabase's free tier has strict
 ## Current Workaround
 
 For testing, I've added:
+
 1. Debug info in login/signup forms showing auth state
 2. Links to `/auth/debug` and `/system-check`
 3. "Clear Cache" button on home page

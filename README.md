@@ -20,7 +20,7 @@ An AI-powered language learning app focused on speaking practice. Track your spe
 
 ## 📋 Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 - Supabase account
 - OpenAI API key
@@ -29,20 +29,24 @@ An AI-powered language learning app focused on speaking practice. Track your spe
 ## 🔧 Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/shojuro/JustSpeakMVP.git
    cd JustSpeakMVP/justspeakmvp
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**
+
    ```bash
    cp .env.example .env
    ```
+
    Fill in your API keys and configuration
 
 4. **Set up Supabase**
@@ -93,12 +97,14 @@ The app uses a carefully chosen color palette optimized for accessibility:
 ## 🚀 Deployment
 
 ### Vercel (Recommended)
+
 ```bash
 npm run build
 vercel --prod
 ```
 
 ### Docker
+
 ```bash
 docker build -t justspeakmvp .
 docker run -p 3000:3000 justspeakmvp

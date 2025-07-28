@@ -21,6 +21,7 @@
 ## Immediate Actions
 
 ### 1. Clear Session and Cache
+
 ```javascript
 // In browser console:
 localStorage.clear()
@@ -29,18 +30,23 @@ sessionStorage.clear()
 ```
 
 ### 2. Check Auth Debug Page
+
 Visit: https://just-speak-mvp-7uhu.vercel.app/auth/debug
 
 ### 3. Check System Status
+
 Visit: https://just-speak-mvp-7uhu.vercel.app/system-check
 
 ### 4. Verify Supabase Email Settings
+
 1. Go to Supabase Dashboard → Authentication → Email Templates
 2. Check "Confirm signup" template
 3. Verify SMTP settings are configured
 
 ### 5. Check Browser Console
+
 Open console and try to login, look for:
+
 - "Starting sign in process..."
 - Any error messages
 - Network tab for failed requests

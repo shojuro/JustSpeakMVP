@@ -4,14 +4,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/components/providers/AuthProvider'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
-import { isDebugEnabled } from '@/lib/env'
 
 export default function AuthDebugPage() {
-  // Block access in production unless explicitly enabled
-  if (!isDebugEnabled()) {
-    notFound()
-  }
+  // Access control is handled by layout.tsx
   const { user } = useAuth()
   const [session, setSession] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -26,24 +21,29 @@ export default function AuthDebugPage() {
       try {
         // Log start
         addLog('Starting auth check...')
-        
+
         // Get cookies
         setCookies(document.cookie)
         addLog(`Cookies present: ${document.cookie ? 'Yes' : 'No'}`)
-        
+
         // Check session
-        const { data: { session }, error } = await supabase.auth.getSession()
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
         if (error) {
           addLog(`Session error: ${error.message}`)
           throw error
         }
-        
+
         setSession(session)
         addLog(`Session found: ${session ? 'Yes' : 'No'}`)
-        
+
         if (session) {
           addLog(`User email: ${session.user.email}`)
-          addLog(`Session expires: ${session.expires_at ? new Date(session.expires_at * 1000).toLocaleString() : 'Unknown'}`)
+          addLog(
+            `Session expires: ${session.expires_at ? new Date(session.expires_at * 1000).toLocaleString() : 'Unknown'}`
+          )
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to get session')
@@ -55,7 +55,7 @@ export default function AuthDebugPage() {
 
     const addLog = (message: string) => {
       const timestamp = new Date().toLocaleTimeString()
-      setAuthLogs(prev => [...prev, `[${timestamp}] ${message}`])
+      setAuthLogs((prev) => [...prev, `[${timestamp}] ${message}`])
     }
 
     checkAuth()
@@ -63,21 +63,21 @@ export default function AuthDebugPage() {
 
   const handleResendConfirmation = async () => {
     if (!user?.email) return
-    
+
     setResendLoading(true)
     setResendMessage(null)
-    
+
     try {
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: user.email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
-        }
+        },
       })
-      
+
       if (error) throw error
-      
+
       setResendMessage('Confirmation email sent! Please check your inbox.')
     } catch (err) {
       setResendMessage(err instanceof Error ? err.message : 'Failed to resend email')
@@ -116,7 +116,9 @@ export default function AuthDebugPage() {
               </div>
               <div>
                 <span className="text-text-secondary">Supabase URL:</span>{' '}
-                <span className="text-text-primary">{process.env.NEXT_PUBLIC_SUPABASE_URL || 'Not set'}</span>
+                <span className="text-text-primary">
+                  {process.env.NEXT_PUBLIC_SUPABASE_URL || 'Not set'}
+                </span>
               </div>
             </div>
           </div>
@@ -127,7 +129,11 @@ export default function AuthDebugPage() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-text-secondary">Authenticated:</span>
-                <span className={session ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                <span
+                  className={
+                    session ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'
+                  }
+                >
                   {session ? 'Yes' : 'No'}
                 </span>
               </div>
@@ -143,7 +149,13 @@ export default function AuthDebugPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-text-secondary">Email Confirmed:</span>
-                    <span className={user.confirmed_at ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                    <span
+                      className={
+                        user.confirmed_at
+                          ? 'text-green-600 font-semibold'
+                          : 'text-red-600 font-semibold'
+                      }
+                    >
                       {user.confirmed_at ? 'Yes' : 'No'}
                     </span>
                     {!user.confirmed_at && (
@@ -157,7 +169,9 @@ export default function AuthDebugPage() {
                     )}
                   </div>
                   {resendMessage && (
-                    <div className={`mt-2 text-sm ${resendMessage.includes('sent') ? 'text-green-600' : 'text-red-600'}`}>
+                    <div
+                      className={`mt-2 text-sm ${resendMessage.includes('sent') ? 'text-green-600' : 'text-red-600'}`}
+                    >
                       {resendMessage}
                     </div>
                   )}
@@ -174,15 +188,19 @@ export default function AuthDebugPage() {
                 <div>
                   <span className="text-text-secondary">Expires at:</span>{' '}
                   <span className="font-mono">
-                    {session.expires_at ? new Date(session.expires_at * 1000).toLocaleString() : 'Unknown'}
+                    {session.expires_at
+                      ? new Date(session.expires_at * 1000).toLocaleString()
+                      : 'Unknown'}
                   </span>
                 </div>
                 <div>
                   <span className="text-text-secondary">Provider:</span>{' '}
-                  <span className="font-mono">{session.user?.app_metadata?.provider || 'email'}</span>
+                  <span className="font-mono">
+                    {session.user?.app_metadata?.provider || 'email'}
+                  </span>
                 </div>
               </div>
-              
+
               {/* Removed full session details for security */}
             </div>
           )}
@@ -238,10 +256,7 @@ export default function AuthDebugPage() {
                   </Link>
                 </>
               )}
-              <button
-                onClick={() => window.location.reload()}
-                className="btn-secondary"
-              >
+              <button onClick={() => window.location.reload()} className="btn-secondary">
                 Refresh Page
               </button>
             </div>

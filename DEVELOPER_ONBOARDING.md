@@ -60,12 +60,14 @@ git reset --hard HEAD
 ### 4. Code Quality Tools
 
 - [ ] **Prettier formatting works**
+
   ```bash
   npm run format:check
   npm run format
   ```
 
 - [ ] **ESLint linting works**
+
   ```bash
   npm run lint
   npm run lint:fix
@@ -84,10 +86,11 @@ git reset --hard HEAD
   - Verify auto-formatting happens
 
 - [ ] **Commit message validation**
+
   ```bash
   # This should fail
   git commit -m "bad commit message"
-  
+
   # This should pass
   git commit -m "feat: add new feature"
   ```
@@ -160,6 +163,7 @@ git commit -m "docs: add onboarding test comment"
 ```
 
 Observe:
+
 - Prettier formats your code
 - ESLint checks for issues
 - Commit message is validated
@@ -171,6 +175,7 @@ git push origin feature/your-name-test
 ```
 
 Observe:
+
 - TypeScript checking runs before push
 - Push succeeds if no type errors
 

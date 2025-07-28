@@ -5,26 +5,31 @@ If you can't find the Root Directory setting in the Vercel Dashboard, use the Ve
 ## Steps:
 
 1. **Install Vercel CLI** (if not already installed):
+
    ```bash
    npm i -g vercel
    ```
 
 2. **Login to Vercel**:
+
    ```bash
    vercel login
    ```
 
 3. **Navigate to your repository root**:
+
    ```bash
    cd /path/to/JustSpeakMVP
    ```
 
 4. **Deploy with root directory specified**:
+
    ```bash
    vercel --cwd justspeakmvp
    ```
 
    Or if you're already in the justspeakmvp directory:
+
    ```bash
    cd justspeakmvp
    vercel
@@ -41,6 +46,7 @@ If you can't find the Root Directory setting in the Vercel Dashboard, use the Ve
 If you have access to push to the repository root (not just the justspeakmvp subdirectory), you could:
 
 1. Create a `vercel.json` at the repository root:
+
    ```json
    {
      "buildCommand": "cd justspeakmvp && npm install && npm run build",

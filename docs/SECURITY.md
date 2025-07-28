@@ -16,6 +16,7 @@ Just Speak MVP is built with security as a primary concern. This document outlin
 4. **Use strong, unique secrets** - Generate random strings for JWT secrets and encryption keys
 
 ### What to do if credentials are exposed:
+
 1. **Immediately revoke/regenerate all exposed credentials**
 2. **Update your local `.env` file with new credentials**
 3. **Check Git history to ensure secrets weren't committed**
@@ -25,18 +26,21 @@ Just Speak MVP is built with security as a primary concern. This document outlin
 ## 🛡️ Security Features
 
 ### Authentication & Authorization
+
 - **Supabase Auth**: JWT-based authentication with refresh tokens
 - **Session Management**: Secure cookie configuration, automatic token refresh
 - **Password Policy**: Bcrypt hashing with minimum 10 rounds
 - **Rate Limiting**: Prevents brute force attacks on auth endpoints
 
 ### Data Protection
+
 - **Encryption**: All data encrypted in transit (HTTPS only)
 - **Database Security**: Row Level Security (RLS) on all tables
 - **API Security**: All endpoints require authentication
 - **Input Validation**: Comprehensive validation on all user inputs
 
 ### Infrastructure Security
+
 - **Headers**: Security headers configured (CSP, HSTS, X-Frame-Options, etc.)
 - **CORS**: Strict CORS policy allowing only authorized origins
 - **Environment Variables**: Secrets stored securely, never in code
@@ -59,6 +63,7 @@ We will respond within 48 hours and work on a fix immediately.
 ## 📋 Security Checklist
 
 ### Development
+
 - [ ] Never commit secrets or API keys
 - [ ] Always validate and sanitize user input
 - [ ] Use parameterized queries (Prisma/Supabase handles this)
@@ -66,6 +71,7 @@ We will respond within 48 hours and work on a fix immediately.
 - [ ] Keep dependencies updated
 
 ### Deployment
+
 - [ ] Enable HTTPS everywhere
 - [ ] Configure security headers
 - [ ] Set up monitoring and alerting
@@ -73,6 +79,7 @@ We will respond within 48 hours and work on a fix immediately.
 - [ ] Implement rate limiting
 
 ### Code Review
+
 - [ ] Check for hardcoded secrets
 - [ ] Verify input validation
 - [ ] Review authentication logic
@@ -82,16 +89,19 @@ We will respond within 48 hours and work on a fix immediately.
 ## 🔒 Data Privacy
 
 ### What We Collect
+
 - Email address (for authentication)
 - Speaking recordings (temporarily, for transcription only)
 - Session metadata (duration, timestamps)
 
 ### What We DON'T Store
+
 - Raw audio recordings (deleted after transcription)
 - Payment information (handled by Stripe)
 - Personal identification information
 
 ### Data Retention
+
 - User data: Until account deletion
 - Session data: 90 days
 - Logs: 30 days
@@ -99,11 +109,13 @@ We will respond within 48 hours and work on a fix immediately.
 ## 🛠️ Security Tools
 
 ### Development
+
 - **ESLint Security Plugin**: Catches common vulnerabilities
 - **npm audit**: Checks for vulnerable dependencies
 - **TypeScript**: Type safety prevents many vulnerabilities
 
 ### Production
+
 - **Cloudflare**: DDoS protection and WAF
 - **Sentry**: Error tracking and monitoring
 - **Vercel**: Secure hosting with automatic HTTPS
@@ -118,14 +130,17 @@ We will respond within 48 hours and work on a fix immediately.
 ## 🔄 Regular Security Tasks
 
 ### Daily
+
 - Monitor error logs for suspicious activity
 - Check for failed authentication attempts
 
 ### Weekly
+
 - Review dependency updates
 - Run security scans
 
 ### Monthly
+
 - Full security audit
 - Update security documentation
 - Review and update security policies
@@ -133,18 +148,21 @@ We will respond within 48 hours and work on a fix immediately.
 ## 🚀 Security Roadmap
 
 ### Phase 1 (MVP)
+
 - [x] Basic authentication
 - [x] Input validation
 - [x] Security headers
 - [x] Rate limiting
 
 ### Phase 2 (Post-Launch)
+
 - [ ] Two-factor authentication
 - [ ] Advanced threat detection
 - [ ] Security audit by third party
 - [ ] SOC 2 compliance
 
 ### Phase 3 (Scale)
+
 - [ ] Enterprise SSO
 - [ ] Advanced encryption
 - [ ] Compliance certifications

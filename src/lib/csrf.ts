@@ -1,19 +1,21 @@
 import { NextRequest } from 'next/server'
-import crypto from 'crypto'
 
 const CSRF_COOKIE_NAME = 'csrf-token'
 const CSRF_HEADER_NAME = 'x-csrf-token'
 const TOKEN_LENGTH = 32
 
 export function generateCSRFToken(): string {
-  return crypto.randomBytes(TOKEN_LENGTH).toString('hex')
+  // Use Web Crypto API for Edge runtime compatibility
+  const array = new Uint8Array(TOKEN_LENGTH)
+  crypto.getRandomValues(array)
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
 export function getCSRFToken(request: NextRequest): string | null {
   // Try to get token from cookie first
   const cookieToken = request.cookies.get(CSRF_COOKIE_NAME)?.value
   if (cookieToken) return cookieToken
-  
+
   // For new sessions, we'll generate in middleware
   return null
 }
@@ -28,7 +30,7 @@ export function validateCSRFToken(request: NextRequest): boolean {
   // Skip CSRF for API routes that are public (like time check)
   const pathname = request.nextUrl.pathname
   const publicApiRoutes = ['/api/time']
-  if (publicApiRoutes.some(route => pathname.startsWith(route))) {
+  if (publicApiRoutes.some((route) => pathname.startsWith(route))) {
     return true
   }
 
@@ -41,13 +43,13 @@ export function validateCSRFToken(request: NextRequest): boolean {
 
   // Get token from header or body
   const headerToken = request.headers.get(CSRF_HEADER_NAME)
-  
+
   // Validate tokens match
   const valid = cookieToken === headerToken
   if (!valid) {
     console.warn('CSRF validation failed: Token mismatch')
   }
-  
+
   return valid
 }
 

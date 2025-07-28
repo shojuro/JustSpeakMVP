@@ -4,59 +4,57 @@ import { generateCSRFToken, validateCSRFToken, getCSRFToken } from '@/lib/csrf'
 import { rateLimiters } from '@/lib/rateLimit'
 
 export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname
-  
-  // Skip middleware for static assets
-  if (
-    path.startsWith('/_next') ||
-    path.includes('.') && !path.startsWith('/api')
-  ) {
-    return NextResponse.next()
-  }
+  try {
+    const path = request.nextUrl.pathname
+
+    // Skip middleware for static assets
+    if (path.startsWith('/_next') || (path.includes('.') && !path.startsWith('/api'))) {
+      return NextResponse.next()
+    }
 
   // Check if this is an API route
   const isApiRoute = path.startsWith('/api')
-  
+
   // For API routes, apply rate limiting and CSRF validation
   if (isApiRoute) {
-    // Skip rate limiting in development unless explicitly enabled
-    if (process.env.NODE_ENV !== 'development' || process.env.ENABLE_RATE_LIMIT === 'true') {
+    // Apply rate limiting in production (skip in development unless explicitly enabled)
+    const isProduction = process.env.NODE_ENV === 'production'
+    const enableRateLimit = process.env.ENABLE_RATE_LIMIT === 'true'
+    
+    if (isProduction || enableRateLimit) {
       // Determine which rate limiter to use
       let rateLimiter = rateLimiters.api
-      
+
       if (path.startsWith('/api/auth')) {
         rateLimiter = rateLimiters.auth
       } else if (path.startsWith('/api/speech-to-text') || path.startsWith('/api/text-to-speech')) {
         rateLimiter = rateLimiters.speech
       }
-      
+
       // Apply rate limit
       const { success, limit, remaining, reset } = await rateLimiter(request)
-      
+
       if (!success) {
-        return new NextResponse(
-          JSON.stringify({ error: 'Too many requests' }),
-          {
-            status: 429,
-            headers: {
-              'Content-Type': 'application/json',
-              'X-RateLimit-Limit': limit.toString(),
-              'X-RateLimit-Remaining': remaining.toString(),
-              'X-RateLimit-Reset': new Date(reset).toISOString(),
-              'Retry-After': Math.ceil((reset - Date.now()) / 1000).toString(),
-            },
-          }
-        )
+        return new NextResponse(JSON.stringify({ error: 'Too many requests' }), {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-RateLimit-Limit': limit.toString(),
+            'X-RateLimit-Remaining': remaining.toString(),
+            'X-RateLimit-Reset': new Date(reset).toISOString(),
+            'Retry-After': Math.ceil((reset - Date.now()) / 1000).toString(),
+          },
+        })
       }
     }
-    
+
     // Validate CSRF
     const isValid = validateCSRFToken(request)
     if (!isValid) {
-      return new NextResponse(
-        JSON.stringify({ error: 'Invalid CSRF token' }),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      )
+      return new NextResponse(JSON.stringify({ error: 'Invalid CSRF token' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
   }
 
@@ -81,9 +79,18 @@ export async function middleware(request: NextRequest) {
 
   // For page routes that aren't API routes, continue with auth logic
   if (!isApiRoute) {
+    // Check if Supabase environment variables are available
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Supabase environment variables not configured')
+      return response
+    }
+
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabaseAnonKey,
       {
         cookies: {
           get(name: string) {
@@ -121,12 +128,13 @@ export async function middleware(request: NextRequest) {
         },
       }
     )
-    
+
     // Auth pages that should be accessible without authentication
     const isAuthPage = path.startsWith('/auth/') || path === '/auth'
-    const isPublicPage = path === '/' || path === '/about' || path === '/system-check' || path === '/chat'
+    const isPublicPage =
+      path === '/' || path === '/about' || path === '/system-check' || path === '/chat'
     const isProtectedPage = false // No protected pages for now
-    
+
     // Skip auth check for auth callback to allow OAuth flow
     if (path === '/auth/callback') {
       console.log('Middleware: Allowing auth callback')
@@ -136,18 +144,23 @@ export async function middleware(request: NextRequest) {
     // Check for auth cookies to detect recent login
     // Supabase uses cookies with pattern: sb-<project-ref>-auth-token
     const cookies = request.cookies.getAll()
-    const hasAuthCookie = cookies.some(cookie => 
-      cookie.name.startsWith('sb-') && cookie.name.includes('-auth-token')
+    const hasAuthCookie = cookies.some(
+      (cookie) => cookie.name.startsWith('sb-') && cookie.name.includes('-auth-token')
     )
-    console.log(`Middleware: Auth cookies present: ${hasAuthCookie}, cookie count: ${cookies.length}`)
+    console.log(
+      `Middleware: Auth cookies present: ${hasAuthCookie}, cookie count: ${cookies.length}`
+    )
 
     // If we're on login page and have auth cookies, wait a moment for session to establish
     if (path === '/auth/login' && hasAuthCookie) {
       console.log('Middleware: Detected auth cookies on login page, checking session...')
     }
 
-    const { data: { session }, error } = await supabase.auth.getSession()
-    
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession()
+
     if (error) {
       console.error('Middleware auth error:', error)
       // On error, allow access to public and auth pages, protect others
@@ -158,8 +171,10 @@ export async function middleware(request: NextRequest) {
       }
       return response
     }
-    
-    console.log(`Middleware: path=${path}, authenticated=${!!session}, isAuthPage=${isAuthPage}, hasAuthCookie=${hasAuthCookie}`)
+
+    console.log(
+      `Middleware: path=${path}, authenticated=${!!session}, isAuthPage=${isAuthPage}, hasAuthCookie=${hasAuthCookie}`
+    )
 
     // Handle protected routes
     if (isProtectedPage && !session) {
@@ -181,10 +196,13 @@ export async function middleware(request: NextRequest) {
   }
 
   return response
+  } catch (error) {
+    console.error('Middleware error:', error)
+    // Return a basic response on error to prevent the app from crashing
+    return NextResponse.next()
+  }
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }

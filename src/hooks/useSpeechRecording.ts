@@ -8,7 +8,7 @@ export function useSpeechRecording() {
   const [transcript, setTranscript] = useState('')
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -17,7 +17,7 @@ export function useSpeechRecording() {
 
   const startRecording = useCallback(async () => {
     console.log('[Recording] Start requested, current state:', isRecording)
-    
+
     // Reset state
     setError(null)
     setTranscript('')
@@ -26,16 +26,16 @@ export function useSpeechRecording() {
 
     try {
       console.log('[Recording] Requesting microphone access...')
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
-        }
+          autoGainControl: true,
+        },
       })
       streamRef.current = stream
       console.log('[Recording] Microphone access granted')
-      
+
       // Verify audio stream is active
       const audioTracks = stream.getAudioTracks()
       console.log('[Recording] Audio tracks:', audioTracks.length)
@@ -45,12 +45,15 @@ export function useSpeechRecording() {
           enabled: track.enabled,
           muted: track.muted,
           readyState: track.readyState,
-          settings: track.getSettings()
+          settings: track.getSettings(),
         })
       })
-      
+
       // Check if we have active audio tracks
-      if (audioTracks.length === 0 || !audioTracks.some(track => track.enabled && track.readyState === 'live')) {
+      if (
+        audioTracks.length === 0 ||
+        !audioTracks.some((track) => track.enabled && track.readyState === 'live')
+      ) {
         throw new Error('No active audio tracks found')
       }
 
@@ -68,7 +71,7 @@ export function useSpeechRecording() {
       // Create MediaRecorder with options
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: mimeType,
-        audioBitsPerSecond: 128000
+        audioBitsPerSecond: 128000,
       })
       mediaRecorderRef.current = mediaRecorder
 
@@ -83,12 +86,15 @@ export function useSpeechRecording() {
         console.log('[Recording] Data available event fired!')
         console.log('[Recording] Event data size:', event.data?.size || 0)
         console.log('[Recording] Event data type:', event.data?.type || 'unknown')
-        
+
         if (event.data && event.data.size > 0) {
           chunksRef.current.push(event.data)
           console.log('[Recording] Data chunk received and stored')
           console.log('[Recording] Total chunks collected:', chunksRef.current.length)
-          console.log('[Recording] Chunk sizes:', chunksRef.current.map(c => c.size))
+          console.log(
+            '[Recording] Chunk sizes:',
+            chunksRef.current.map((c) => c.size)
+          )
         } else {
           console.warn('[Recording] Empty data chunk received')
         }
@@ -98,36 +104,36 @@ export function useSpeechRecording() {
         console.log('[Recording] MediaRecorder stopped')
         console.log('[Recording] Final state:', mediaRecorder.state)
         console.log('[Recording] Total chunks collected:', chunksRef.current.length)
-        
+
         // Process audio if we have data
         if (chunksRef.current.length > 0) {
           console.log('[Recording] Creating blob from chunks...')
           const totalSize = chunksRef.current.reduce((acc, chunk) => acc + chunk.size, 0)
           console.log('[Recording] Total data size:', totalSize)
-          
+
           const audioBlob = new Blob(chunksRef.current, { type: mimeType })
           console.log('[Recording] Blob created successfully')
           console.log('[Recording] Blob size:', audioBlob.size)
           console.log('[Recording] Blob type:', audioBlob.type)
-          
+
           // Stop tracks after creating blob
           if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => {
+            streamRef.current.getTracks().forEach((track) => {
               track.stop()
               console.log('[Recording] Track stopped:', track.label)
             })
             streamRef.current = null
           }
-          
+
           await transcribeAudio(audioBlob)
         } else {
           console.error('[Recording] No audio chunks collected!')
           console.log('[Recording] MediaRecorder state at stop:', mediaRecorder.state)
           setError('No audio was recorded. Please check microphone permissions.')
-          
+
           // Still stop tracks
           if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop())
+            streamRef.current.getTracks().forEach((track) => track.stop())
             streamRef.current = null
           }
         }
@@ -145,11 +151,11 @@ export function useSpeechRecording() {
 
       // Force data collection by requesting data before starting
       console.log('[Recording] Starting MediaRecorder with 100ms timeslice...')
-      
+
       // Start recording with shorter timeslice for more frequent data collection
       mediaRecorder.start(100) // Capture data every 100ms
       setIsRecording(true)
-      
+
       // Start duration tracking
       startTimeRef.current = Date.now()
       durationIntervalRef.current = setInterval(() => {
@@ -174,7 +180,7 @@ export function useSpeechRecording() {
       console.log('[Recording] Started successfully with periodic data collection')
     } catch (error: any) {
       console.error('[Recording] Failed to start:', error)
-      
+
       if (error.name === 'NotAllowedError') {
         setError('Microphone permission denied. Please allow access and try again.')
       } else if (error.name === 'NotFoundError') {
@@ -182,10 +188,10 @@ export function useSpeechRecording() {
       } else {
         setError('Failed to start recording: ' + error.message)
       }
-      
+
       // Cleanup on error
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current.getTracks().forEach((track) => track.stop())
         streamRef.current = null
       }
       setIsRecording(false)
@@ -196,11 +202,11 @@ export function useSpeechRecording() {
     console.log('[Recording] Stop requested')
     console.log('[Recording] Current MediaRecorder state:', mediaRecorderRef.current?.state)
     console.log('[Recording] Current chunks count:', chunksRef.current.length)
-    
+
     // Check minimum duration (0.5 seconds)
     const recordingDuration = (Date.now() - startTimeRef.current) / 1000
     console.log('[Recording] Recording duration:', recordingDuration, 'seconds')
-    
+
     // Clear duration interval
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current)
@@ -210,7 +216,7 @@ export function useSpeechRecording() {
     // Stop media recorder if it exists and is recording
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       console.log('[Recording] Requesting data before stopping...')
-      
+
       // Force data collection by requesting data
       try {
         mediaRecorderRef.current.requestData()
@@ -218,7 +224,7 @@ export function useSpeechRecording() {
       } catch (e) {
         console.error('[Recording] Error requesting data:', e)
       }
-      
+
       // Small delay to allow data collection before stopping
       setTimeout(() => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
@@ -231,7 +237,7 @@ export function useSpeechRecording() {
       console.log('[Recording] MediaRecorder not recording, cleaning up...')
       // If not recording, still clean up
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current.getTracks().forEach((track) => track.stop())
         streamRef.current = null
       }
       setIsRecording(false)
@@ -241,7 +247,7 @@ export function useSpeechRecording() {
   const transcribeAudio = async (audioBlob: Blob) => {
     try {
       console.log('[Transcription] Starting, blob size:', audioBlob.size)
-      
+
       // Minimum size for 0.1 seconds of audio (roughly 2000 bytes for webm)
       if (audioBlob.size < 2000) {
         console.log('[Transcription] Audio too short, skipping')
@@ -258,14 +264,14 @@ export function useSpeechRecording() {
       })
 
       const data = await response.json()
-      
+
       if (!response.ok) {
         console.error('[Transcription] API error:', data)
         throw new Error(data.error || `Transcription failed: ${response.status}`)
       }
 
       console.log('[Transcription] Result:', data)
-      
+
       if (data.text) {
         setTranscript(data.text)
       } else {
@@ -280,13 +286,13 @@ export function useSpeechRecording() {
   // Cleanup function for manual recovery
   const forceCleanup = useCallback(() => {
     console.log('[Recording] Force cleanup requested')
-    
+
     // Stop everything
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current)
       durationIntervalRef.current = null
     }
-    
+
     if (mediaRecorderRef.current) {
       try {
         if (mediaRecorderRef.current.state !== 'inactive') {
@@ -297,19 +303,19 @@ export function useSpeechRecording() {
       }
       mediaRecorderRef.current = null
     }
-    
+
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
-    
+
     // Reset all state
     setIsRecording(false)
     setError(null)
     setTranscript('')
     setDuration(0)
     chunksRef.current = []
-    
+
     console.log('[Recording] Force cleanup complete')
   }, [])
 

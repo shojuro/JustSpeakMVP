@@ -16,15 +16,18 @@ export default function AuthCallbackPage() {
         const urlParams = new URLSearchParams(window.location.search)
         const errorCode = urlParams.get('error')
         const errorDescription = urlParams.get('error_description')
-        
+
         if (errorCode) {
           throw new Error(errorDescription || errorCode)
         }
 
         // When using PKCE flow, Supabase automatically handles the code exchange
         // We just need to check if a session was created
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
+
         if (error) {
           throw error
         }
@@ -51,13 +54,15 @@ export default function AuthCallbackPage() {
         }
       } catch (err) {
         console.error('Auth callback error:', err)
-        
+
         if (isClockSkewError(err)) {
-          setError('Your device clock appears to be incorrect. Please fix your system time settings and try again.')
+          setError(
+            'Your device clock appears to be incorrect. Please fix your system time settings and try again.'
+          )
         } else {
           setError(err instanceof Error ? err.message : 'An error occurred during authentication')
         }
-        
+
         // Redirect to login after 5 seconds for clock skew, 3 for other errors
         const delay = isClockSkewError(err) ? 5000 : 3000
         setTimeout(() => {
@@ -71,7 +76,7 @@ export default function AuthCallbackPage() {
 
   if (error) {
     const isClockError = error.includes('clock appears to be incorrect')
-    
+
     return (
       <main className="min-h-screen bg-gradient-to-b from-bg-secondary to-white flex items-center justify-center px-4">
         <div className="text-center max-w-md">

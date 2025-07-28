@@ -5,7 +5,7 @@
 function getCSRFToken(): string | null {
   // Get CSRF token from cookie
   const cookies = document.cookie.split(';')
-  const csrfCookie = cookies.find(cookie => cookie.trim().startsWith('csrf-token='))
+  const csrfCookie = cookies.find((cookie) => cookie.trim().startsWith('csrf-token='))
   if (csrfCookie) {
     return csrfCookie.split('=')[1]
   }
@@ -18,9 +18,13 @@ interface FetchOptions extends RequestInit {
 
 export async function apiFetch(url: string, options: FetchOptions = {}) {
   const { skipCSRF = false, ...fetchOptions } = options
-  
+
   // Add CSRF token to headers for state-changing requests
-  if (!skipCSRF && fetchOptions.method && !['GET', 'HEAD'].includes(fetchOptions.method.toUpperCase())) {
+  if (
+    !skipCSRF &&
+    fetchOptions.method &&
+    !['GET', 'HEAD'].includes(fetchOptions.method.toUpperCase())
+  ) {
     const csrfToken = getCSRFToken()
     if (csrfToken) {
       fetchOptions.headers = {

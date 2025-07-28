@@ -127,7 +127,6 @@ VS Code will prompt to install recommended extensions from `.vscode/extensions.j
 - **Node Setup** (`reusable-node-setup.yml`)
   - Standardized Node.js environment setup
   - Automatic dependency caching
-  
 - **Code Quality** (`reusable-code-quality.yml`)
   - Reusable linting, formatting, and type checking
   - Configurable for different scenarios

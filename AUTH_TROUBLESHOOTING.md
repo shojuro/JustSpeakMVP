@@ -22,9 +22,11 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 2. **Update Confirm Signup Template**:
    - Find the "Confirm signup" template
    - Look for the confirmation URL, it should be:
+
    ```
    {{ .SiteURL }}/auth/callback?code={{ .Token }}&type=signup
    ```
+
    - If it's using localhost, update it
 
 3. **Update Auth Settings**:
@@ -56,17 +58,20 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 ### 4. **Common Issues & Solutions**
 
 #### Issue: "No authorization code found"
+
 - **Cause**: Email link is malformed or expired
 - **Solution**: Request new confirmation email from debug page
 
 #### Issue: Email confirmed but still can't login
+
 - **Cause**: Password might be incorrect or session issues
-- **Solution**: 
+- **Solution**:
   1. Try resetting password
   2. Clear browser cookies for your domain
   3. Try incognito/private browsing mode
 
 #### Issue: Redirected to localhost after confirmation
+
 - **Cause**: Supabase Site URL is set to localhost
 - **Solution**: Update Site URL in Supabase dashboard (see step 2.3)
 
@@ -89,6 +94,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 ### 7. **Emergency Workaround**
 
 If confirmation emails are not working, you can temporarily:
+
 1. Go to Supabase Dashboard → Authentication → Users
 2. Find the user and manually confirm their email
 3. This allows testing while fixing the email flow

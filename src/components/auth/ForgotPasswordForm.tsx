@@ -36,12 +36,10 @@ export default function ForgotPasswordForm() {
       <div className="w-full max-w-md mx-auto">
         <div className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 text-center">
           <div className="text-5xl mb-4">📧</div>
-          <h2 className="text-2xl font-bold mb-4 text-text-primary">
-            Check Your Email
-          </h2>
+          <h2 className="text-2xl font-bold mb-4 text-text-primary">Check Your Email</h2>
           <p className="text-text-secondary mb-6">
-            We've sent you a password reset link. Please check your inbox and follow the instructions
-            to reset your password.
+            We've sent you a password reset link. Please check your inbox and follow the
+            instructions to reset your password.
           </p>
           <Link href="/auth/login" className="text-primary hover:text-blue-700 font-medium">
             Back to Login
@@ -54,10 +52,8 @@ export default function ForgotPasswordForm() {
   return (
     <div className="w-full max-w-md mx-auto">
       <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8">
-        <h2 className="text-2xl font-bold text-center mb-6 text-text-primary">
-          Forgot Password?
-        </h2>
-        
+        <h2 className="text-2xl font-bold text-center mb-6 text-text-primary">Forgot Password?</h2>
+
         <p className="text-text-secondary text-sm mb-6 text-center">
           Enter your email address and we'll send you a link to reset your password.
         </p>
@@ -69,10 +65,7 @@ export default function ForgotPasswordForm() {
         )}
 
         <div className="mb-6">
-          <label
-            className="block text-text-secondary text-sm font-medium mb-2"
-            htmlFor="email"
-          >
+          <label className="block text-text-secondary text-sm font-medium mb-2" htmlFor="email">
             Email
           </label>
           <input
@@ -87,11 +80,7 @@ export default function ForgotPasswordForm() {
           />
         </div>
 
-        <button
-          type="submit"
-          className="btn-primary w-full"
-          disabled={loading}
-        >
+        <button type="submit" className="btn-primary w-full" disabled={loading}>
           {loading ? 'Sending...' : 'Send Reset Link'}
         </button>
 

@@ -24,7 +24,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   const [totalSpeakingTime, setTotalSpeakingTime] = useState(0)
   const [voiceEnabled, setVoiceEnabled] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  
+
   const {
     isRecording,
     isStarting,
@@ -36,13 +36,8 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     duration,
     error: recordingError,
   } = useSpeechRecording()
-  
-  const {
-    speak,
-    stop: stopSpeaking,
-    isSpeaking,
-    error: voiceError,
-  } = useVoiceSynthesis()
+
+  const { speak, stop: stopSpeaking, isSpeaking, error: voiceError } = useVoiceSynthesis()
 
   // Scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -62,9 +57,14 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
 
   // Handle transcript updates
   const lastTranscriptRef = useRef<string>('')
-  
+
   useEffect(() => {
-    console.log('[ChatInterface] Transcript update - transcript:', transcript, 'isRecording:', isRecording)
+    console.log(
+      '[ChatInterface] Transcript update - transcript:',
+      transcript,
+      'isRecording:',
+      isRecording
+    )
     if (transcript && transcript.trim().length > 0 && !isRecording) {
       // Prevent duplicate messages
       if (lastTranscriptRef.current === transcript) {
@@ -72,14 +72,16 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         return
       }
       lastTranscriptRef.current = transcript
-      
+
       console.log('[ChatInterface] Processing transcript:', transcript)
       // Add validation to prevent spam messages
       const lowerTranscript = transcript.toLowerCase()
-      if (lowerTranscript.includes('engvid.com') || 
-          lowerTranscript.includes('learn english for free') ||
-          lowerTranscript.includes('www.') ||
-          lowerTranscript.includes('.com')) {
+      if (
+        lowerTranscript.includes('engvid.com') ||
+        lowerTranscript.includes('learn english for free') ||
+        lowerTranscript.includes('www.') ||
+        lowerTranscript.includes('.com')
+      ) {
         console.error('[ChatInterface] Suspicious transcript blocked:', transcript)
         return
       }
@@ -155,8 +157,8 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     }
 
     // Add user message immediately
-    setMessages(prev => [...prev, userMessage])
-    
+    setMessages((prev) => [...prev, userMessage])
+
     // Update speaking time
     const newSpeakingTime = totalSpeakingTime + duration
     setTotalSpeakingTime(newSpeakingTime)
@@ -176,7 +178,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       if (!response.ok) throw new Error('Failed to get AI response')
 
       const data = await response.json()
-      
+
       // Add AI message
       const aiMessage: Message = {
         id: crypto.randomUUID(),
@@ -186,8 +188,8 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         duration: null,
         created_at: new Date().toISOString(),
       }
-      
-      setMessages(prev => [...prev, aiMessage])
+
+      setMessages((prev) => [...prev, aiMessage])
 
       // Speak the AI response if voice is enabled
       if (voiceEnabled) {
@@ -204,18 +206,20 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
           .update({ total_speaking_time: newSpeakingTime })
           .eq('id', session.id)
       }
-
     } catch (error) {
       console.error('Error sending message:', error)
       // Add error message
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
-        session_id: session?.id || 'anonymous',
-        speaker: 'AI',
-        content: "I'm sorry, I couldn't process that. Please try again.",
-        duration: null,
-        created_at: new Date().toISOString(),
-      }])
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          session_id: session?.id || 'anonymous',
+          speaker: 'AI',
+          content: "I'm sorry, I couldn't process that. Please try again.",
+          duration: null,
+          created_at: new Date().toISOString(),
+        },
+      ])
     } finally {
       setIsLoading(false)
     }
@@ -241,7 +245,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       setSession(null)
       setMessages([])
       setTotalSpeakingTime(0)
-      
+
       // Create new session
       createOrGetSession()
     } catch (error) {
@@ -267,14 +271,22 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 {voiceEnabled ? (
-                  <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
+                  <path
+                    fillRule="evenodd"
+                    d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z"
+                    clipRule="evenodd"
+                  />
                 ) : (
-                  <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  <path
+                    fillRule="evenodd"
+                    d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
                 )}
               </svg>
               <span className="hidden sm:inline">{voiceEnabled ? 'Voice On' : 'Voice Off'}</span>
             </button>
-            
+
             {isAnonymous ? (
               <>
                 <span className="text-sm text-text-muted">Practice mode</span>
@@ -307,11 +319,11 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
               </p>
             </div>
           )}
-          
+
           {messages.map((message) => (
             <MessageBubble key={message.id} message={message} />
           ))}
-          
+
           {isLoading && (
             <div className="flex justify-start">
               <div className="chat-bubble-ai flex items-center space-x-2">
@@ -323,7 +335,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
               </div>
             </div>
           )}
-          
+
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -343,22 +355,22 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
             }}
             disabled={isLoading || isSpeaking}
           />
-          
+
           {/* Compact recording states */}
           {(isStarting || isRecording || isStopping) && (
             <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white rounded-lg shadow-md px-3 py-1 text-xs">
-              {isStarting && (
-                <span className="text-text-secondary animate-pulse">Starting...</span>
-              )}
+              {isStarting && <span className="text-text-secondary animate-pulse">Starting...</span>}
               {isRecording && (
-                <span className="text-warning font-medium animate-pulse">Listening {duration}s</span>
+                <span className="text-warning font-medium animate-pulse">
+                  Listening {duration}s
+                </span>
               )}
               {isStopping && (
                 <span className="text-text-secondary animate-pulse">Processing...</span>
               )}
             </div>
           )}
-          
+
           {/* Compact status indicators */}
           {(isSpeaking || recordingError || voiceError) && (
             <div className="mt-2 space-y-1">
@@ -366,8 +378,16 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
               {isSpeaking && (
                 <div className="p-2 bg-blue-50 border border-blue-200 rounded flex items-center justify-between text-xs">
                   <div className="flex items-center">
-                    <svg className="w-4 h-4 text-blue-600 mr-1 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
+                    <svg
+                      className="w-4 h-4 text-blue-600 mr-1 animate-pulse"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                     <span className="text-blue-700">AI speaking...</span>
                   </div>
@@ -379,7 +399,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
                   </button>
                 </div>
               )}
-              
+
               {/* Error display */}
               {(recordingError || voiceError) && (
                 <div className="p-2 bg-red-50 border border-red-200 rounded text-xs">
@@ -394,10 +414,9 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
               )}
             </div>
           )}
-          
         </div>
       </div>
-      
+
       {/* Floating Debug panel */}
       <details className="fixed bottom-4 right-4 z-50">
         <summary className="cursor-pointer text-xs bg-gray-800 text-white px-2 py-1 rounded">

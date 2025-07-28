@@ -3,11 +3,13 @@
 ## Quick Fix for Deployment Errors
 
 ### Error 1: "No Next.js version detected" / "Couldn't find any `pages` or `app` directory"
-This error occurs because the Next.js application is in the `justspeakmvp` subdirectory of the GitHub repository. 
 
-**Solution**: You MUST set the Root Directory to `justspeakmvp`. 
+This error occurs because the Next.js application is in the `justspeakmvp` subdirectory of the GitHub repository.
+
+**Solution**: You MUST set the Root Directory to `justspeakmvp`.
 
 **If you can't find Root Directory in Settings:**
+
 1. **Delete and re-import the project** (Recommended):
    - Delete the current project in Vercel
    - Click "New Project" → Import Git Repository
@@ -16,6 +18,7 @@ This error occurs because the Next.js application is in the `justspeakmvp` subdi
    - Deploy
 
 2. **Use Vercel CLI**:
+
    ```bash
    cd justspeakmvp
    vercel
@@ -27,6 +30,7 @@ This error occurs because the Next.js application is in the `justspeakmvp` subdi
    - Try "Environment" section
 
 ### Error 2: "Environment Variable references Secret which does not exist"
+
 This occurs because Vercel is looking for secrets that haven't been created yet.
 
 ## Setup Instructions
@@ -80,6 +84,7 @@ vercel env add ENCRYPTION_KEY
 After adding all environment variables:
 
 1. Trigger a new deployment:
+
    ```bash
    vercel --prod
    ```

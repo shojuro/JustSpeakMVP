@@ -7,12 +7,15 @@ After extensive troubleshooting, we identified that authentication failures were
 ## Timeline of Issues & Fixes
 
 ### Initial Problem (Commit d2755c7)
+
 - User could create account and receive confirmation email
 - Could not login after email confirmation
 - No error messages displayed
 
 ### First Fix Attempt: Auth Callback & Error Handling
+
 **Implemented:**
+
 - Fixed auth callback to properly exchange OAuth code for session
 - Added comprehensive error handling with specific messages
 - Created auth debug page at `/auth/debug`
@@ -21,12 +24,15 @@ After extensive troubleshooting, we identified that authentication failures were
 **Result:** Still couldn't login - deeper issue present
 
 ### Second Fix Attempt: Navigation & Missing Resources (Commit 1f4e242)
+
 **Identified:**
+
 - Missing forgot-password page (404 errors)
 - Missing PWA icons (404 errors)
 - Potential navigation issues after login
 
 **Implemented:**
+
 - Enhanced auth navigation with multiple fallback strategies
 - Created forgot-password page and form
 - Fixed PWA icon errors with SVG placeholder
@@ -35,16 +41,20 @@ After extensive troubleshooting, we identified that authentication failures were
 **Result:** Still couldn't login - console revealed the real issue
 
 ### Root Cause Discovery
+
 Console error revealed:
+
 ```
-@supabase/gotrue-js: Session as retrieved from URL was issued in the future? 
+@supabase/gotrue-js: Session as retrieved from URL was issued in the future?
 Check the device clock for skew 1753460544 1753464144 1753460543
 ```
 
 **Analysis:** Device clock was ~3600 seconds (1 hour) behind server time
 
 ### Final Solution: Clock Skew Detection & Handling (Commit 3191cec)
+
 **Implemented:**
+
 1. **Clock Skew Detection System**
    - Utility functions to detect time differences
    - Server time API endpoint (`/api/time`)
@@ -83,12 +93,14 @@ Check the device clock for skew 1753460544 1753464144 1753460543
 ## Deployment Checklist
 
 ### Pre-Deployment Verified:
+
 - [x] TypeScript compilation passing
 - [x] ESLint/Prettier configured (though with path issues due to spaces)
 - [x] All fixes committed and pushed
 - [x] User's system clock synchronized
 
 ### Vercel Configuration Required:
+
 1. **Environment Variables** (already set):
    - `NEXT_PUBLIC_APP_URL=https://just-speak-mvp-7uhu.vercel.app`
    - `NEXT_PUBLIC_SUPABASE_URL`
@@ -105,6 +117,7 @@ Check the device clock for skew 1753460544 1753464144 1753460543
 ## Post-Deployment Testing Plan
 
 ### Immediate Tests:
+
 1. Visit `/system-check` - Verify no clock skew detected
 2. Create new test account
 3. Confirm email and verify auto-login works
@@ -113,11 +126,13 @@ Check the device clock for skew 1753460544 1753464144 1753460543
 6. Test forgot password flow
 
 ### Monitoring:
+
 1. Check Vercel function logs for any errors
 2. Monitor Supabase auth logs
 3. Watch for clock skew warnings in production
 
 ### Success Criteria:
+
 - [ ] Users can sign up and receive confirmation emails
 - [ ] Email confirmation links work and auto-login users
 - [ ] Manual login works for existing users

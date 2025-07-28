@@ -18,16 +18,16 @@ export default tseslint.config(
       '*.config.js',
       '*.config.ts',
       'coverage/**',
-      '.vercel/**'
-    ]
+      '.vercel/**',
+    ],
   },
-  
+
   // Base JavaScript rules
   eslint.configs.recommended,
-  
+
   // TypeScript rules
   ...tseslint.configs.recommended,
-  
+
   // React plugin configuration
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
@@ -36,30 +36,33 @@ export default tseslint.config(
       'react-hooks': reactHooksPlugin,
       'jsx-a11y': jsxA11yPlugin,
       security: securityPlugin,
-      '@next/next': nextPlugin
+      '@next/next': nextPlugin,
     },
     languageOptions: {
       parserOptions: {
         ecmaFeatures: {
-          jsx: true
-        }
-      }
+          jsx: true,
+        },
+      },
     },
     settings: {
       react: {
-        version: 'detect'
-      }
+        version: 'detect',
+      },
     },
     rules: {
       // TypeScript rules
-      '@typescript-eslint/no-unused-vars': ['error', { 
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_'
-      }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-non-null-assertion': 'warn',
-      
+
       // React rules
       'react/prop-types': 'off', // TypeScript handles this
       'react/react-in-jsx-scope': 'off', // Next.js handles this
@@ -70,24 +73,24 @@ export default tseslint.config(
       'react/no-danger': 'error',
       'react/no-find-dom-node': 'error',
       'react/no-direct-mutation-state': 'error',
-      
+
       // React Hooks rules
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      
+
       // Accessibility rules
       'jsx-a11y/alt-text': 'error',
       'jsx-a11y/anchor-is-valid': 'warn',
       'jsx-a11y/aria-props': 'error',
       'jsx-a11y/aria-role': 'error',
-      
+
       // Security rules
       'security/detect-object-injection': 'warn',
       'security/detect-non-literal-fs-filename': 'error',
       'security/detect-eval-with-expression': 'error',
       'security/detect-no-csrf-before-method-override': 'error',
       'security/detect-possible-timing-attacks': 'warn',
-      
+
       // General JavaScript rules
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'no-eval': 'error',
@@ -96,20 +99,20 @@ export default tseslint.config(
       'no-unused-vars': 'off', // TypeScript handles this
       'no-duplicate-imports': 'error',
       'no-multiple-empty-lines': ['warn', { max: 1 }],
-      
+
       // Next.js specific rules
       '@next/next/no-html-link-for-pages': 'error',
-      '@next/next/no-img-element': 'warn'
-    }
+      '@next/next/no-img-element': 'warn',
+    },
   },
-  
+
   // Special configuration for TypeScript files
   {
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
       parserOptions: {
-        project: './tsconfig.json'
-      }
-    }
+        project: './tsconfig.json',
+      },
+    },
   }
 )

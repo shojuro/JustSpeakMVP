@@ -15,15 +15,15 @@ interface RateLimitEntry {
 // TODO: Replace with Redis for production
 const store = new Map<string, RateLimitEntry>()
 
-// Cleanup expired entries every minute
-setInterval(() => {
+// Cleanup expired entries on each request (serverless compatible)
+function cleanupExpiredEntries() {
   const now = Date.now()
   store.forEach((entry, key) => {
     if (entry.resetTime <= now) {
       store.delete(key)
     }
   })
-}, 60000)
+}
 
 export function createRateLimiter(config: RateLimitConfig) {
   const { windowMs, max, identifier } = config
@@ -34,18 +34,22 @@ export function createRateLimiter(config: RateLimitConfig) {
     remaining: number
     reset: number
   }> {
+    // Cleanup expired entries
+    cleanupExpiredEntries()
+
     // Get identifier (IP by default)
-    const id = identifier ? identifier(request) : 
-      request.headers.get('x-forwarded-for')?.split(',')[0] || 
-      request.headers.get('x-real-ip') ||
-      'anonymous'
+    const id = identifier
+      ? identifier(request)
+      : request.headers.get('x-forwarded-for')?.split(',')[0] ||
+        request.headers.get('x-real-ip') ||
+        'anonymous'
 
     const now = Date.now()
     const resetTime = now + windowMs
 
     // Get or create entry
     let entry = store.get(id)
-    
+
     if (!entry || entry.resetTime <= now) {
       // Create new entry
       entry = { count: 1, resetTime }

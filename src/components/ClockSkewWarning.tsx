@@ -20,7 +20,7 @@ export default function ClockSkewWarning() {
           if (skewResult.hasSkew) {
             setClockSkew({
               hasSkew: true,
-              message: skewResult.message
+              message: skewResult.message,
             })
             console.warn('Clock skew detected:', skewResult)
           }
@@ -33,7 +33,7 @@ export default function ClockSkewWarning() {
     }
 
     checkClockSkew()
-    
+
     // Recheck every 5 minutes
     const interval = setInterval(checkClockSkew, 5 * 60 * 1000)
     return () => clearInterval(interval)
@@ -48,14 +48,22 @@ export default function ClockSkewWarning() {
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="h-5 w-5 text-amber-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           </div>
           <div>
-            <p className="text-sm font-medium text-amber-800">
-              System Clock Issue Detected
-            </p>
+            <p className="text-sm font-medium text-amber-800">System Clock Issue Detected</p>
             <p className="text-sm text-amber-700 mt-1">
               {clockSkew.message} This may prevent you from signing in.
             </p>
@@ -76,7 +84,12 @@ export default function ClockSkewWarning() {
           aria-label="Dismiss"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>

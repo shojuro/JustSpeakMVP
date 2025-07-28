@@ -67,9 +67,7 @@ export default function SignupForm() {
       <div className="w-full max-w-md mx-auto">
         <div className="bg-white shadow-md rounded-lg px-8 pt-6 pb-8 text-center">
           <div className="text-5xl mb-4">✅</div>
-          <h2 className="text-2xl font-bold mb-4 text-text-primary">
-            Check Your Email
-          </h2>
+          <h2 className="text-2xl font-bold mb-4 text-text-primary">Check Your Email</h2>
           <p className="text-text-secondary mb-6">
             We've sent you a confirmation email. Please check your inbox and click the link to
             activate your account.
@@ -79,8 +77,8 @@ export default function SignupForm() {
               Important: Supabase Email Limitations
             </p>
             <p className="text-sm text-amber-700">
-              If you don't receive an email within 5 minutes, it may be due to Supabase's rate limits.
-              Free tier only allows 3 emails per hour.
+              If you don't receive an email within 5 minutes, it may be due to Supabase's rate
+              limits. Free tier only allows 3 emails per hour.
             </p>
           </div>
           <Link href="/auth/login" className="text-primary hover:text-blue-700 font-medium">
@@ -106,16 +104,11 @@ export default function SignupForm() {
 
         {/* Debug info in production */}
         {debugInfo && (
-          <div className="mb-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
-            {debugInfo}
-          </div>
+          <div className="mb-4 p-2 bg-gray-100 rounded text-xs text-gray-600">{debugInfo}</div>
         )}
 
         <div className="mb-4">
-          <label
-            className="block text-text-secondary text-sm font-medium mb-2"
-            htmlFor="email"
-          >
+          <label className="block text-text-secondary text-sm font-medium mb-2" htmlFor="email">
             Email
           </label>
           <input
@@ -131,10 +124,7 @@ export default function SignupForm() {
         </div>
 
         <div className="mb-4">
-          <label
-            className="block text-text-secondary text-sm font-medium mb-2"
-            htmlFor="password"
-          >
+          <label className="block text-text-secondary text-sm font-medium mb-2" htmlFor="password">
             Password
           </label>
           <input
@@ -171,11 +161,7 @@ export default function SignupForm() {
           />
         </div>
 
-        <button
-          type="submit"
-          className="btn-primary w-full"
-          disabled={loading}
-        >
+        <button type="submit" className="btn-primary w-full" disabled={loading}>
           {loading ? 'Creating Account...' : 'Create Account'}
         </button>
 

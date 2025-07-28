@@ -16,8 +16,8 @@ export const supabase = createClient<Database>(
     },
     global: {
       headers: {
-        'X-Client-Info': 'just-speak-mvp'
-      }
+        'X-Client-Info': 'just-speak-mvp',
+      },
     },
   }
 )
@@ -32,7 +32,9 @@ supabase.auth.signInWithPassword = async (...args) => {
     // Check for clock skew errors
     if (isClockSkewError(error)) {
       console.error('Clock skew detected during sign in:', error)
-      throw new Error('Your device clock appears to be incorrect. Please check your system time settings and try again.')
+      throw new Error(
+        'Your device clock appears to be incorrect. Please check your system time settings and try again.'
+      )
     }
     throw error
   }

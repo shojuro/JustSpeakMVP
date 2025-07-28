@@ -11,13 +11,13 @@ interface SpeakButtonProps {
 
 export default function SpeakButton({ isRecording, onStart, onStop, disabled }: SpeakButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null)
-  
+
   const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     console.log('[Button] Start event, disabled:', disabled, 'isRecording:', isRecording)
-    
+
     if (!disabled && !isRecording) {
       onStart()
     }
@@ -26,9 +26,9 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
   const handleStop = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     console.log('[Button] Stop event, isRecording:', isRecording)
-    
+
     if (isRecording) {
       onStop()
     }
@@ -40,7 +40,7 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
       onStop()
     }
   }
-  
+
   // Global mouse up handler to catch releases outside button
   React.useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -60,14 +60,14 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
     if (isRecording) {
       document.addEventListener('mouseup', handleGlobalMouseUp)
       document.addEventListener('touchend', handleGlobalTouchEnd)
-      
+
       return () => {
         document.removeEventListener('mouseup', handleGlobalMouseUp)
         document.removeEventListener('touchend', handleGlobalTouchEnd)
       }
     }
   }, [isRecording, onStop])
-  
+
   // Prevent context menu on long press
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -88,9 +88,10 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
         className={`
           relative w-16 h-16 rounded-full flex items-center justify-center
           text-white font-semibold transition-all transform
-          ${isRecording 
-            ? 'bg-warning scale-110 animate-pulse shadow-lg' 
-            : 'bg-primary hover:bg-blue-700 active:scale-95 shadow-md'
+          ${
+            isRecording
+              ? 'bg-warning scale-110 animate-pulse shadow-lg'
+              : 'bg-primary hover:bg-blue-700 active:scale-95 shadow-md'
           }
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
           focus:outline-none focus:ring-4 focus:ring-primary focus:ring-opacity-50
@@ -109,7 +110,7 @@ export default function SpeakButton({ isRecording, onStart, onStop, disabled }: 
           />
         </svg>
       </button>
-      
+
       <p className="mt-2 text-xs text-text-secondary">
         {isRecording ? 'Release to send' : 'Hold to speak'}
       </p>

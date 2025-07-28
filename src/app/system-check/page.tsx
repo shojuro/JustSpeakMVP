@@ -35,15 +35,15 @@ export default function SystemCheckPage() {
     clockSync: { status: 'checking', message: 'Checking clock synchronization...' },
     supabase: { status: 'checking', message: 'Checking Supabase connection...' },
     auth: { status: 'checking', message: 'Checking authentication status...' },
-    browser: { 
-      status: 'ok', 
+    browser: {
+      status: 'ok',
       message: 'Browser information',
       details: {
         userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'N/A',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        language: typeof window !== 'undefined' ? window.navigator.language : 'N/A'
-      }
-    }
+        language: typeof window !== 'undefined' ? window.navigator.language : 'N/A',
+      },
+    },
   })
 
   useEffect(() => {
@@ -53,93 +53,99 @@ export default function SystemCheckPage() {
         const serverTime = await getServerTime()
         if (serverTime) {
           const skewResult = detectClockSkew(serverTime)
-          setStatus(prev => ({
+          setStatus((prev) => ({
             ...prev,
             clockSync: {
               status: skewResult.hasSkew ? 'error' : 'ok',
-              message: skewResult.hasSkew 
+              message: skewResult.hasSkew
                 ? `Clock skew detected: ${skewResult.message}`
                 : 'Clock is synchronized',
               details: {
                 serverTime: skewResult.serverTime.toISOString(),
                 localTime: skewResult.localTime.toISOString(),
-                skewSeconds: skewResult.skewSeconds
-              }
-            }
+                skewSeconds: skewResult.skewSeconds,
+              },
+            },
           }))
         } else {
           throw new Error('Could not retrieve server time')
         }
       } catch (error) {
-        setStatus(prev => ({
+        setStatus((prev) => ({
           ...prev,
           clockSync: {
             status: 'error',
             message: 'Failed to check clock synchronization',
-            details: error
-          }
+            details: error,
+          },
         }))
       }
 
       // Check Supabase connection
       try {
         const { data, error } = await supabase.from('profiles').select('id').limit(1)
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        if (error && error.code !== 'PGRST116') {
+          // PGRST116 is "no rows returned"
           throw error
         }
-        
-        setStatus(prev => ({
+
+        setStatus((prev) => ({
           ...prev,
           supabase: {
             status: 'ok',
             message: 'Connected to Supabase',
             details: {
               url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-              connected: true
-            }
-          }
+              connected: true,
+            },
+          },
         }))
       } catch (error) {
-        setStatus(prev => ({
+        setStatus((prev) => ({
           ...prev,
           supabase: {
             status: 'error',
             message: 'Supabase connection failed',
-            details: error
-          }
+            details: error,
+          },
         }))
       }
 
       // Check authentication
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        setStatus(prev => ({
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
+
+        setStatus((prev) => ({
           ...prev,
           auth: {
             status: session ? 'ok' : 'error',
-            message: session 
-              ? `Authenticated as ${session.user.email}`
-              : 'Not authenticated',
+            message: session ? `Authenticated as ${session.user.email}` : 'Not authenticated',
             details: {
               hasSession: !!session,
-              user: session?.user ? {
-                id: session.user.id,
-                email: session.user.email,
-                confirmed: session.user.confirmed_at ? new Date(session.user.confirmed_at) : null
-              } : null,
-              expiresAt: session ? new Date(session.expires_at! * 1000).toISOString() : null
-            }
-          }
+              user: session?.user
+                ? {
+                    id: session.user.id,
+                    email: session.user.email,
+                    confirmed: session.user.confirmed_at
+                      ? new Date(session.user.confirmed_at)
+                      : null,
+                  }
+                : null,
+              expiresAt: session ? new Date(session.expires_at! * 1000).toISOString() : null,
+            },
+          },
         }))
       } catch (error) {
-        setStatus(prev => ({
+        setStatus((prev) => ({
           ...prev,
           auth: {
             status: 'error',
             message: 'Failed to check authentication',
-            details: error
-          }
+            details: error,
+          },
         }))
       }
     }
@@ -311,10 +317,7 @@ export default function SystemCheckPage() {
           <div className="bg-gray-50 rounded-lg p-6">
             <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
             <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => window.location.reload()}
-                className="btn-secondary text-sm"
-              >
+              <button onClick={() => window.location.reload()} className="btn-secondary text-sm">
                 Refresh Checks
               </button>
               <button

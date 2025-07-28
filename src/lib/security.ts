@@ -18,7 +18,9 @@ export const securityHeaders = {
     connect-src 'self' https://*.supabase.co https://api.openai.com wss://*.supabase.co;
     media-src 'self';
     frame-src 'none';
-  `.replace(/\s+/g, ' ').trim(),
+  `
+    .replace(/\s+/g, ' ')
+    .trim(),
 }
 
 // Rate limiting configuration
