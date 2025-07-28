@@ -99,21 +99,57 @@ Your role is to:
     // Save both messages to database (only for authenticated users)
     if (!isAnonymous && sessionId !== 'anonymous') {
       const supabase = await createClient()
-      const { error: insertError } = await supabase.from('messages').insert([
-        {
+      
+      // Insert user message
+      const { data: userMessage, error: userInsertError } = await supabase
+        .from('messages')
+        .insert({
           session_id: sessionId,
           speaker: 'USER',
           content: sanitizedMessage,
-        },
-        {
+        })
+        .select()
+        .single()
+
+      if (userInsertError) {
+        console.error('Error saving user message:', userInsertError)
+      }
+
+      // Insert AI message
+      const { error: aiInsertError } = await supabase
+        .from('messages')
+        .insert({
           session_id: sessionId,
           speaker: 'AI',
           content: aiResponse,
-        },
-      ])
+        })
 
-      if (insertError) {
-        console.error('Error saving messages:', insertError)
+      if (aiInsertError) {
+        console.error('Error saving AI message:', aiInsertError)
+      }
+
+      // Check if we should analyze this message (every 3rd message)
+      if (userMessage && userId) {
+        const { count } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('session_id', sessionId)
+          .eq('speaker', 'USER')
+
+        if (count && count % 3 === 0) {
+          // Trigger error analysis in the background
+          fetch('/api/analyze-errors', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messageId: userMessage.id,
+              userId,
+              sessionId,
+              content: sanitizedMessage,
+              duration: 0, // Duration will be added when we implement it
+            }),
+          }).catch(err => console.error('Error analysis failed:', err))
+        }
       }
     }
 

@@ -107,7 +107,10 @@ export default function SignupForm() {
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-sm text-error" dangerouslySetInnerHTML={{ __html: escapeHTML(error) }} />
+            <p
+              className="text-sm text-error"
+              dangerouslySetInnerHTML={{ __html: escapeHTML(error) }}
+            />
           </div>
         )}
 

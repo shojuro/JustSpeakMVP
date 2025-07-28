@@ -295,12 +295,17 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
                 </Link>
               </>
             ) : (
-              <button
-                onClick={handleEndSession}
-                className="text-sm text-text-secondary hover:text-text-primary"
-              >
-                End Session
-              </button>
+              <>
+                <Link href="/dashboard" className="text-sm text-primary hover:text-blue-700">
+                  View Progress
+                </Link>
+                <button
+                  onClick={handleEndSession}
+                  className="text-sm text-text-secondary hover:text-text-primary"
+                >
+                  End Session
+                </button>
+              </>
             )}
           </div>
         </div>

@@ -10,16 +10,30 @@ import DOMPurify from 'isomorphic-dompurify'
  */
 export function sanitizeHTML(dirty: string): string {
   if (!dirty) return ''
-  
+
   // Configure DOMPurify to allow only safe tags
   const config = {
-    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre'],
+    ALLOWED_TAGS: [
+      'b',
+      'i',
+      'em',
+      'strong',
+      'a',
+      'p',
+      'br',
+      'ul',
+      'ol',
+      'li',
+      'blockquote',
+      'code',
+      'pre',
+    ],
     ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
     ALLOW_DATA_ATTR: false,
     FORBID_TAGS: ['script', 'style', 'iframe', 'form', 'input'],
     FORBID_ATTR: ['style', 'onerror', 'onclick', 'onload'],
   }
-  
+
   return DOMPurify.sanitize(dirty, config)
 }
 
@@ -28,10 +42,10 @@ export function sanitizeHTML(dirty: string): string {
  */
 export function sanitizeText(dirty: string): string {
   if (!dirty) return ''
-  
+
   // Remove all HTML tags and decode entities
   const cleaned = DOMPurify.sanitize(dirty, { ALLOWED_TAGS: [] })
-  
+
   // Additional cleanup for common injection patterns
   return cleaned
     .replace(/[<>]/g, '') // Remove any remaining angle brackets
@@ -43,11 +57,11 @@ export function sanitizeText(dirty: string): string {
  */
 export function sanitizeURL(dirty: string): string {
   if (!dirty) return ''
-  
+
   // Trim and lowercase for comparison
   const trimmed = dirty.trim()
   const lower = trimmed.toLowerCase()
-  
+
   // Block dangerous protocols
   const dangerousProtocols = ['javascript:', 'data:', 'vbscript:', 'file:']
   for (const protocol of dangerousProtocols) {
@@ -55,7 +69,7 @@ export function sanitizeURL(dirty: string): string {
       return ''
     }
   }
-  
+
   // Ensure URL is properly encoded
   try {
     const url = new URL(trimmed)
@@ -76,13 +90,13 @@ export function sanitizeURL(dirty: string): string {
  */
 export function sanitizeEmail(dirty: string): string {
   if (!dirty) return ''
-  
+
   // Basic email validation and sanitization
   const cleaned = sanitizeText(dirty).toLowerCase()
-  
+
   // Simple email regex for basic validation
   const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/
-  
+
   return emailRegex.test(cleaned) ? cleaned : ''
 }
 
@@ -92,10 +106,10 @@ export function sanitizeEmail(dirty: string): string {
  */
 export function sanitizeUsername(dirty: string): string {
   if (!dirty) return ''
-  
+
   // Remove any HTML first
   const cleaned = sanitizeText(dirty)
-  
+
   // Allow only safe characters for usernames
   return cleaned
     .replace(/[^a-zA-Z0-9\s\-_]/g, '')
@@ -109,10 +123,10 @@ export function sanitizeUsername(dirty: string): string {
  */
 export function sanitizeSearchQuery(dirty: string): string {
   if (!dirty) return ''
-  
+
   // Remove any HTML
   const cleaned = sanitizeText(dirty)
-  
+
   // Remove SQL-like patterns and special characters
   return cleaned
     .replace(/['";\\]/g, '') // Remove quotes and backslashes
@@ -129,11 +143,11 @@ export function sanitizeSearchQuery(dirty: string): string {
  */
 export function sanitizeJSON(dirty: string): string {
   if (!dirty) return '{}'
-  
+
   try {
     // Parse and re-stringify to ensure valid JSON
     const parsed = JSON.parse(dirty)
-    
+
     // Recursively sanitize string values in the JSON
     const sanitizeObject = (obj: any): any => {
       if (typeof obj === 'string') {
@@ -151,7 +165,7 @@ export function sanitizeJSON(dirty: string): string {
       }
       return obj
     }
-    
+
     return JSON.stringify(sanitizeObject(parsed))
   } catch {
     // If not valid JSON, return empty object
@@ -165,7 +179,7 @@ export function sanitizeJSON(dirty: string): string {
  */
 export function escapeHTML(str: string): string {
   if (!str) return ''
-  
+
   const map: Record<string, string> = {
     '&': '&amp;',
     '<': '&lt;',
@@ -174,7 +188,7 @@ export function escapeHTML(str: string): string {
     "'": '&#x27;',
     '/': '&#x2F;',
   }
-  
+
   return str.replace(/[&<>"'/]/g, (char) => map[char] || char)
 }
 
@@ -183,10 +197,10 @@ export function escapeHTML(str: string): string {
  */
 export function sanitizeFilePath(dirty: string): string {
   if (!dirty) return ''
-  
+
   // Remove any HTML first
   const cleaned = sanitizeText(dirty)
-  
+
   // Remove directory traversal attempts
   return cleaned
     .replace(/\.\./g, '') // Remove ..

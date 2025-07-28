@@ -12,17 +12,17 @@ export enum SecurityEventType {
   SIGNUP_FAILURE = 'SIGNUP_FAILURE',
   PASSWORD_RESET_REQUEST = 'PASSWORD_RESET_REQUEST',
   PASSWORD_RESET_SUCCESS = 'PASSWORD_RESET_SUCCESS',
-  
+
   // Authorization events
   UNAUTHORIZED_ACCESS = 'UNAUTHORIZED_ACCESS',
   FORBIDDEN_ACCESS = 'FORBIDDEN_ACCESS',
-  
+
   // Security protection events
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
   CSRF_VALIDATION_FAILURE = 'CSRF_VALIDATION_FAILURE',
   FILE_VALIDATION_FAILURE = 'FILE_VALIDATION_FAILURE',
   INPUT_VALIDATION_FAILURE = 'INPUT_VALIDATION_FAILURE',
-  
+
   // API events
   API_ERROR = 'API_ERROR',
   SUSPICIOUS_ACTIVITY = 'SUSPICIOUS_ACTIVITY',
@@ -54,7 +54,7 @@ class SecurityLogger {
 
     // Add to in-memory store
     this.events.push(fullEvent)
-    
+
     // Trim if exceeds max
     if (this.events.length > this.maxEvents) {
       this.events = this.events.slice(-this.maxEvents)
@@ -67,7 +67,7 @@ class SecurityLogger {
 
     // In production, you would send this to a logging service
     // Example: this.sendToLoggingService(fullEvent)
-    
+
     // For critical events, you might want to alert immediately
     if (event.severity === 'critical') {
       this.handleCriticalEvent(fullEvent)
@@ -85,18 +85,14 @@ class SecurityLogger {
    * Get events by type
    */
   getEventsByType(type: SecurityEventType, limit = 100): SecurityEvent[] {
-    return this.events
-      .filter(event => event.type === type)
-      .slice(-limit)
+    return this.events.filter((event) => event.type === type).slice(-limit)
   }
 
   /**
    * Get events by user
    */
   getEventsByUser(userId: string, limit = 100): SecurityEvent[] {
-    return this.events
-      .filter(event => event.userId === userId)
-      .slice(-limit)
+    return this.events.filter((event) => event.userId === userId).slice(-limit)
   }
 
   /**
@@ -105,10 +101,8 @@ class SecurityLogger {
   clearOldEvents(olderThanHours = 24) {
     const cutoffTime = new Date()
     cutoffTime.setHours(cutoffTime.getHours() - olderThanHours)
-    
-    this.events = this.events.filter(
-      event => new Date(event.timestamp) > cutoffTime
-    )
+
+    this.events = this.events.filter((event) => new Date(event.timestamp) > cutoffTime)
   }
 
   /**
@@ -127,11 +121,7 @@ class SecurityLogger {
    */
   private formatLogMessage(event: SecurityEvent): string {
     const { type, timestamp, ip, userId, email, details, severity } = event
-    const parts = [
-      `[${severity.toUpperCase()}]`,
-      `${type}`,
-      `timestamp=${timestamp}`,
-    ]
+    const parts = [`[${severity.toUpperCase()}]`, `${type}`, `timestamp=${timestamp}`]
 
     if (ip) parts.push(`ip=${ip}`)
     if (userId) parts.push(`userId=${userId}`)
@@ -156,10 +146,8 @@ export function logAuthEvent(
     severity?: 'info' | 'warning' | 'error' | 'critical'
   } = {}
 ) {
-  const ip = request.headers.get('x-forwarded-for') || 
-    request.headers.get('x-real-ip') || 
-    'unknown'
-    
+  const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+
   const userAgent = request.headers.get('user-agent') || 'unknown'
 
   securityLogger.log({

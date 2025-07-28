@@ -8,7 +8,7 @@ export function generateCSRFToken(): string {
   // Use Web Crypto API for Edge runtime compatibility
   const array = new Uint8Array(TOKEN_LENGTH)
   crypto.getRandomValues(array)
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 export function getCSRFToken(request: NextRequest): string | null {
