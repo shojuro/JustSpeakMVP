@@ -8,8 +8,14 @@ export async function middleware(request: NextRequest) {
   try {
     const path = request.nextUrl.pathname
 
-    // Skip middleware for static assets
-    if (path.startsWith('/_next') || (path.includes('.') && !path.startsWith('/api'))) {
+    // Skip middleware for static assets and public files
+    if (
+      path.startsWith('/_next') || 
+      path.startsWith('/favicon') ||
+      path === '/manifest.json' ||
+      path === '/sw.js' ||
+      (path.includes('.') && !path.startsWith('/api'))
+    ) {
       return NextResponse.next()
     }
 

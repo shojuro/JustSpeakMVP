@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { validateAudioFile, sanitizeFileName } from '@/lib/fileValidation'
-import { SecurityEventType, logSecurityViolation, logAuthEvent } from '@/lib/securityLogger'
+import { SecurityEventType, logSecurityViolation } from '@/lib/securityLogger'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -15,10 +15,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 })
     }
 
-    const formData = await request.formData()
+    let formData
+    try {
+      formData = await request.formData()
+    } catch (error) {
+      console.error('Failed to parse form data:', error)
+      return NextResponse.json({ error: 'Invalid form data' }, { status: 400 })
+    }
+    
     const audioFile = formData.get('audio') as File
 
     if (!audioFile) {
+      console.error('No audio file in form data. Keys:', Array.from(formData.keys()))
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 })
     }
 
