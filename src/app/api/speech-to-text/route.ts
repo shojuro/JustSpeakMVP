@@ -78,6 +78,8 @@ export async function POST(request: NextRequest) {
       status: error.status,
       type: error.type,
       code: error.code,
+      response: error.response?.data,
+      stack: error.stack
     })
 
     // Provide more specific error messages
@@ -87,6 +89,16 @@ export async function POST(request: NextRequest) {
 
     if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
       return NextResponse.json({ error: 'Could not connect to OpenAI API' }, { status: 500 })
+    }
+
+    // Check for rate limit errors
+    if (error.status === 429) {
+      return NextResponse.json({ error: 'OpenAI rate limit exceeded. Please try again later.' }, { status: 429 })
+    }
+
+    // Check for invalid API key format
+    if (error.message?.includes('Incorrect API key')) {
+      return NextResponse.json({ error: 'OpenAI API key is invalid or incorrectly formatted' }, { status: 500 })
     }
 
     // Fallback response if transcription fails
