@@ -110,11 +110,13 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       }
 
       if (existingSessions && existingSessions.length > 0) {
-        // Use existing session
-        console.log('[ChatInterface] Using existing session:', existingSessions[0].id)
-        setSession(existingSessions[0])
-        setTotalSpeakingTime(existingSessions[0].total_speaking_time)
-        await loadMessages(existingSessions[0].id)
+        // Use existing session - take the most recent one
+        const mostRecentSession = existingSessions[0]
+        console.log('[ChatInterface] Found', existingSessions.length, 'active sessions')
+        console.log('[ChatInterface] Using most recent session:', mostRecentSession.id)
+        setSession(mostRecentSession)
+        setTotalSpeakingTime(mostRecentSession.total_speaking_time)
+        await loadMessages(mostRecentSession.id)
       } else {
         // Create new session
         console.log('[ChatInterface] Creating new session')
