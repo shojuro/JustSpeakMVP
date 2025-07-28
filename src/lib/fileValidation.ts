@@ -55,11 +55,12 @@ export async function validateAudioFile(file: File | Blob): Promise<ValidationRe
     }
   }
 
-  // Check MIME type
-  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+  // Check MIME type (extract base type without parameters)
+  const baseType = file.type.split(';')[0].trim()
+  if (!ALLOWED_MIME_TYPES.includes(baseType)) {
     return {
       valid: false,
-      error: `File type "${file.type}" is not allowed. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`,
+      error: `File type "${baseType}" is not allowed. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`,
     }
   }
 
