@@ -8,14 +8,38 @@ const openai = new OpenAI({
 })
 
 export async function POST(request: NextRequest) {
+  console.log('[Chat API] POST handler called')
+  
   try {
-    const { message, sessionId, userId, isAnonymous } = await request.json()
+    // Add request validation
+    const contentType = request.headers.get('content-type')
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('[Chat API] Invalid content-type:', contentType)
+      return NextResponse.json(
+        { error: 'Content-Type must be application/json' },
+        { status: 400 }
+      )
+    }
+
+    let body
+    try {
+      body = await request.json()
+    } catch (e) {
+      console.error('[Chat API] Failed to parse JSON:', e)
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
+
+    const { message, sessionId, userId, isAnonymous } = body
 
     console.log('[Chat API] Request received:', {
       messageLength: message?.length,
       sessionId,
       userId,
-      isAnonymous
+      isAnonymous,
+      headers: Object.fromEntries(request.headers.entries())
     })
 
     if (!message) {
@@ -231,7 +255,8 @@ Your role is to:
       stack: error.stack,
       name: error.name,
       code: error.code,
-      status: error.status
+      status: error.status,
+      type: error.constructor.name
     })
     
     // Check for specific OpenAI errors
@@ -243,6 +268,16 @@ Your role is to:
       return NextResponse.json({ error: 'OpenAI rate limit exceeded' }, { status: 429 })
     }
     
-    return NextResponse.json({ error: 'Failed to process chat message' }, { status: 500 })
+    // Return more detailed error in development
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? `Failed to process chat: ${error.message}`
+      : 'Failed to process chat message'
+    
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
+}
+
+// Add OPTIONS handler for CORS
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, { status: 200 })
 }
