@@ -385,6 +385,36 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     // Reset recording duration for next message
     recordingDurationRef.current = 0
 
+    // Analyze errors for authenticated users
+    if (!isAnonymous && user && currentSession) {
+      try {
+        console.log('[ChatInterface] Analyzing errors for message')
+        const analyzeResponse = await apiFetch('/api/analyze-errors', {
+          method: 'POST',
+          body: JSON.stringify({
+            messageId: userMessage.id,
+            userId: user.id,
+            sessionId: currentSession.id,
+            content: text,
+            duration: messageDuration,
+          }),
+        })
+
+        if (!analyzeResponse.ok) {
+          console.error('[ChatInterface] Failed to analyze errors:', await analyzeResponse.text())
+        } else {
+          const result = await analyzeResponse.json()
+          console.log('[ChatInterface] Error analysis complete:', {
+            errorCount: result.errorCount,
+            primaryErrors: result.primaryErrors,
+          })
+        }
+      } catch (error) {
+        console.error('[ChatInterface] Error calling analyze-errors:', error)
+        // Don't fail the whole message if error analysis fails
+      }
+    }
+
     try {
       // Call OpenAI via API route
       // For authenticated users without a session, don't send 'anonymous'
@@ -467,25 +497,6 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
           .from('sessions')
           .update({ total_speaking_time: newSpeakingTime })
           .eq('id', currentSession.id)
-
-        // Also update user progress for dashboard
-        try {
-          console.log('[ChatInterface] Updating user progress, duration:', messageDuration)
-          const progressResponse = await apiFetch('/api/user-progress', {
-            method: 'POST',
-            body: JSON.stringify({
-              speakingTime: messageDuration,
-              sessionId: currentSession.id,
-            }),
-          })
-
-          if (!progressResponse.ok) {
-            console.error('[ChatInterface] Failed to update user progress')
-          }
-        } catch (error) {
-          console.error('[ChatInterface] Error updating user progress:', error)
-          // Don't fail the whole message if progress update fails
-        }
       }
     } catch (error) {
       console.error('Error sending message:', error)

@@ -153,7 +153,7 @@ Format as JSON:
       .select('*')
       .eq('user_id', userId)
       .eq('date', today)
-      .single()
+      .maybeSingle()
 
     if (existingProgress) {
       // Update existing progress
