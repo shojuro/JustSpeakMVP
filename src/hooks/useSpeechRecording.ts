@@ -325,6 +325,10 @@ export function useSpeechRecording() {
     console.log('[Recording] Force cleanup complete')
   }, [])
 
+  const clearTranscript = useCallback(() => {
+    setTranscript('')
+  }, [])
+
   return {
     isRecording,
     transcript,
@@ -333,6 +337,7 @@ export function useSpeechRecording() {
     startRecording,
     stopRecording,
     forceCleanup,
+    clearTranscript,
     // Expose these for debugging
     isStarting: false,
     isStopping: false,

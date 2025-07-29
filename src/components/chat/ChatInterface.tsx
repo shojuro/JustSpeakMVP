@@ -34,6 +34,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     startRecording,
     stopRecording,
     forceCleanup,
+    clearTranscript,
     transcript,
     duration,
     error: recordingError,
@@ -538,13 +539,10 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         return
       }
       handleSendMessage(transcript)
-      
-      // Reset last transcript after processing to allow the same message again later
-      setTimeout(() => {
-        lastTranscriptRef.current = ''
-      }, 1000)
+      // Clear the transcript immediately after processing to prevent loops
+      clearTranscript()
     }
-  }, [transcript, isRecording, duration, handleSendMessage])
+  }, [transcript, isRecording, duration, handleSendMessage, clearTranscript])
 
   const handleEndSession = async () => {
     if (isAnonymous) {
