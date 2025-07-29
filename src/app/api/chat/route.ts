@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       console.log('[Chat API] About to query session with ID:', sessionId, 'Length:', sessionId.length)
       
       const supabase = await createClient()
-      const { data: sessions, error: sessionError } = await supabase
+      let { data: sessions, error: sessionError } = await supabase
         .from('sessions')
         .select('user_id')
         .eq('id', sessionId)
@@ -84,10 +84,32 @@ export async function POST(request: NextRequest) {
       }
 
       if (!sessions || sessions.length === 0) {
-        console.error('[Chat API] No session found')
-        console.error('[Chat API] Session ID:', sessionId)
+        console.error('[Chat API] No session found with ID:', sessionId)
         console.error('[Chat API] Full session ID length:', sessionId?.length || 0)
-        return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+        
+        // Try to recover by finding any active session for this user
+        console.log('[Chat API] Attempting session recovery for user:', userId)
+        const { data: activeSessions, error: recoveryError } = await supabase
+          .from('sessions')
+          .select('id, user_id, created_at')
+          .eq('user_id', userId)
+          .is('ended_at', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          
+        if (recoveryError) {
+          console.error('[Chat API] Session recovery error:', recoveryError)
+          return NextResponse.json({ error: 'Session not found and recovery failed' }, { status: 404 })
+        }
+        
+        if (activeSessions && activeSessions.length > 0) {
+          console.log('[Chat API] Found active session for recovery:', activeSessions[0].id)
+          // Use the recovered session
+          sessions = activeSessions
+        } else {
+          console.error('[Chat API] No active sessions found for user:', userId)
+          return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+        }
       }
 
       if (sessions.length > 1) {

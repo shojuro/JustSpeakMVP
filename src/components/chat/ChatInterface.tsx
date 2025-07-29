@@ -51,9 +51,30 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   // Create or get session on mount
   useEffect(() => {
     if (user && !isAnonymous) {
-      createOrGetSession()
+      // Check if we already have a session before creating a new one
+      if (session) {
+        console.log('[ChatInterface] Session already exists, skipping creation:', session.id)
+        return
+      }
+      
+      // Check if session creation is already in progress
+      const creatingKey = `creating-session-${user.id}`
+      const isCreating = sessionStorage.getItem(creatingKey)
+      
+      if (isCreating) {
+        console.log('[ChatInterface] Session creation already in progress, skipping')
+        return
+      }
+      
+      // Mark that we're creating a session
+      sessionStorage.setItem(creatingKey, 'true')
+      
+      createOrGetSession().finally(() => {
+        // Clear the flag after creation attempt
+        sessionStorage.removeItem(creatingKey)
+      })
     }
-  }, [user, isAnonymous])
+  }, [user, isAnonymous, session])
 
   // Handle transcript updates
   const lastTranscriptRef = useRef<string>('')
@@ -124,18 +145,65 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       }
 
       // Create new session
-      console.log('[ChatInterface] Creating new session')
+      console.log('[ChatInterface] Creating new session for user:', user.id)
+      
+      // First, ensure we have a valid user
+      if (!user.id) {
+        console.error('[ChatInterface] No user ID available for session creation')
+        throw new Error('User ID is required to create a session')
+      }
+      
       const { data: newSession, error: createError } = await supabase
         .from('sessions')
-        .insert({ user_id: user.id })
+        .insert({ 
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+          total_speaking_time: 0
+        })
         .select()
         .single()
 
       if (createError) {
-        console.error('[ChatInterface] Error creating session:', createError)
+        console.error('[ChatInterface] Error creating session:', {
+          error: createError,
+          code: createError.code,
+          message: createError.message,
+          details: createError.details,
+          hint: createError.hint,
+          userId: user.id
+        })
         throw createError
       }
-      console.log('[ChatInterface] New session created:', newSession.id)
+      
+      if (!newSession) {
+        console.error('[ChatInterface] Session creation returned null')
+        throw new Error('Failed to create session - no data returned')
+      }
+      
+      console.log('[ChatInterface] New session created:', {
+        sessionId: newSession.id,
+        userId: newSession.user_id,
+        createdAt: newSession.created_at
+      })
+      
+      // Verify the session was actually created in the database
+      const { data: verifySession, error: verifyError } = await supabase
+        .from('sessions')
+        .select('id, user_id')
+        .eq('id', newSession.id)
+        .single()
+        
+      if (verifyError || !verifySession) {
+        console.error('[ChatInterface] Session verification failed:', {
+          verifyError,
+          sessionId: newSession.id,
+          verifySession
+        })
+        throw new Error('Session created but verification failed')
+      }
+      
+      console.log('[ChatInterface] Session verified in database:', verifySession.id)
+      
       setSession(newSession)
       setMessages([])
       setTotalSpeakingTime(0)
@@ -167,7 +235,41 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     if (!text.trim() || isLoading) return
     if (!isAnonymous && !session) {
       console.error('[ChatInterface] No session available for authenticated user')
-      return
+      // Try to create a session if we don't have one
+      const newSession = await createOrGetSession()
+      if (!newSession) {
+        console.error('[ChatInterface] Failed to create session for message')
+        return
+      }
+    }
+
+    // For authenticated users, verify session exists in database before sending
+    if (!isAnonymous && session) {
+      console.log('[ChatInterface] Verifying session before sending message:', session.id)
+      const { data: sessionExists, error: checkError } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('id', session.id)
+        .single()
+        
+      if (checkError || !sessionExists) {
+        console.error('[ChatInterface] Session verification failed before sending:', {
+          sessionId: session.id,
+          error: checkError,
+          exists: !!sessionExists
+        })
+        
+        // Session doesn't exist, create a new one
+        setSession(null)
+        const newSession = await createOrGetSession(true)
+        if (!newSession) {
+          console.error('[ChatInterface] Failed to create new session after verification failure')
+          return
+        }
+        console.log('[ChatInterface] Created new session after verification failure:', newSession.id)
+      } else {
+        console.log('[ChatInterface] Session verified successfully:', sessionExists.id)
+      }
     }
 
     console.log('[ChatInterface] Sending message:', {
@@ -503,21 +605,73 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         <summary className="cursor-pointer text-xs bg-gray-800 text-white px-2 py-1 rounded">
           Debug
         </summary>
-        <div className="absolute bottom-full right-0 mb-2 p-2 bg-gray-800 text-white rounded text-xs font-mono max-h-48 overflow-y-auto min-w-[200px]">
+        <div className="absolute bottom-full right-0 mb-2 p-2 bg-gray-800 text-white rounded text-xs font-mono max-h-96 overflow-y-auto min-w-[300px]">
+          <div className="border-b border-gray-600 pb-1 mb-1">Session Info</div>
+          <div>User ID: {user?.id || 'none'}</div>
+          <div>Session ID: {session?.id || 'none'}</div>
+          <div>Session User: {session?.user_id || 'none'}</div>
+          <div>Created: {session?.created_at ? new Date(session.created_at).toLocaleTimeString() : 'none'}</div>
+          <div>Is Anonymous: {isAnonymous ? 'YES' : 'NO'}</div>
+          
+          <div className="border-b border-gray-600 pb-1 mb-1 mt-2">Recording State</div>
           <div>Recording: {isRecording ? 'YES' : 'NO'}</div>
           <div>Loading: {isLoading ? 'YES' : 'NO'}</div>
           <div>Duration: {duration}s</div>
           <div>Speaking: {isSpeaking ? 'YES' : 'NO'}</div>
           <div className="break-words">Transcript: {transcript || 'none'}</div>
-          <button
-            onClick={() => {
-              console.log('[Debug] Force cleanup triggered')
-              forceCleanup()
-            }}
-            className="mt-1 text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600 w-full"
-          >
-            Force Reset
-          </button>
+          
+          <div className="border-b border-gray-600 pb-1 mb-1 mt-2">Messages</div>
+          <div>Count: {messages.length}</div>
+          <div>Speaking Time: {totalSpeakingTime}s</div>
+          
+          <div className="mt-2 space-y-1">
+            <button
+              onClick={async () => {
+                console.log('[Debug] Checking all active sessions')
+                const { data, error } = await supabase
+                  .from('sessions')
+                  .select('*')
+                  .eq('user_id', user?.id)
+                  .is('ended_at', null)
+                console.log('[Debug] Active sessions:', data, 'Error:', error)
+              }}
+              className="text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600 w-full"
+            >
+              Check Active Sessions
+            </button>
+            <button
+              onClick={() => {
+                console.log('[Debug] Current state:', {
+                  user,
+                  session,
+                  messages,
+                  isAnonymous,
+                  totalSpeakingTime
+                })
+              }}
+              className="text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600 w-full"
+            >
+              Log Current State
+            </button>
+            <button
+              onClick={() => {
+                console.log('[Debug] Force cleanup triggered')
+                forceCleanup()
+              }}
+              className="text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600 w-full"
+            >
+              Force Reset Recording
+            </button>
+            <button
+              onClick={() => {
+                sessionStorage.clear()
+                console.log('[Debug] Cleared sessionStorage')
+              }}
+              className="text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600 w-full"
+            >
+              Clear Session Storage
+            </button>
+          </div>
         </div>
       </details>
     </div>
