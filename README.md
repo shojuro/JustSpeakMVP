@@ -7,6 +7,8 @@ An AI-powered language learning app focused on speaking practice. Track your spe
 - **Push-to-Talk Interface**: Simple one-button speaking interface
 - **AI Conversation Partners**: Natural conversations powered by GPT-4
 - **Speaking Time Tracking**: Monitor your progress with detailed metrics
+- **Conversation Feedback**: Review conversations and improvement areas
+- **ESL-Focused Corrections**: Prioritized error feedback based on ESL hierarchy
 - **Real-time Transcription**: See your words as you speak
 - **Secure & Private**: End-to-end encryption for all conversations
 
