@@ -91,7 +91,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   }, [transcript, isRecording])
 
   const createOrGetSession = async (forceNew = false) => {
-    if (!user) return
+    if (!user) return null
 
     console.log('[ChatInterface] Creating or getting session for user:', user.id, 'Force new:', forceNew)
 
@@ -119,7 +119,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
           setSession(mostRecentSession)
           setTotalSpeakingTime(mostRecentSession.total_speaking_time)
           await loadMessages(mostRecentSession.id)
-          return
+          return mostRecentSession
         }
       }
 
@@ -139,8 +139,10 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       setSession(newSession)
       setMessages([])
       setTotalSpeakingTime(0)
+      return newSession
     } catch (error) {
       console.error('[ChatInterface] Error managing session:', error)
+      return null
     }
   }
 
@@ -219,14 +221,19 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
           
           // Force create a NEW session (don't reuse existing)
           setSession(null)
-          await createOrGetSession(true) // Force new session
+          const newSession = await createOrGetSession(true) // Force new session
           
           // Reset retry flag after delay
           setTimeout(() => {
             sessionRetryRef.current = false
           }, 2000)
           
-          // Don't retry automatically - let user try again manually
+          // If we got a new session, retry the message
+          if (newSession) {
+            console.log('[ChatInterface] Retrying message with new session:', newSession.id)
+            // Retry the message with the new session
+            handleSendMessage(text)
+          }
           return
         }
         
