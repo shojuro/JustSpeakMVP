@@ -48,8 +48,28 @@ export async function POST(request: NextRequest) {
     
     // Log all cookies for debugging
     const allCookies = cookieStore.getAll()
-    const authCookies = allCookies.filter(c => c.name.includes('sb-') && c.name.includes('auth'))
-    console.log('[Chat API] Auth cookies:', authCookies.map(c => ({ name: c.name, hasValue: !!c.value })))
+    console.log('[Chat API] ALL cookies received:', allCookies.map(c => ({ 
+      name: c.name, 
+      hasValue: !!c.value,
+      valueLength: c.value?.length || 0
+    })))
+    
+    // Look for Supabase auth cookies with various patterns
+    const authCookies = allCookies.filter(c => 
+      c.name.includes('sb-') || 
+      c.name.includes('supabase') || 
+      c.name.includes('auth')
+    )
+    console.log('[Chat API] Potential auth cookies:', authCookies.map(c => ({ 
+      name: c.name, 
+      hasValue: !!c.value 
+    })))
+    
+    // Get Supabase project reference from URL
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+    const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || 'unknown'
+    console.log('[Chat API] Supabase project ref:', projectRef)
+    console.log('[Chat API] Expected cookie prefix:', `sb-${projectRef}-auth-token`)
     
     // Get user from the server-side client (uses cookies)
     const { data: { user: authenticatedUser }, error: authError } = await supabase.auth.getUser()
