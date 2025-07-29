@@ -164,23 +164,21 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         }
       }
 
-      // Before creating new session, end any existing orphaned sessions
-      if (!forceNew) {
-        try {
-          console.log('[ChatInterface] Cleaning up orphaned sessions')
-          const { data: orphanedSessions, error: cleanupError } = await supabase
-            .from('sessions')
-            .update({ ended_at: new Date().toISOString() })
-            .eq('user_id', user.id)
-            .is('ended_at', null)
-            .select()
+      // Always clean up orphaned sessions before creating new one
+      try {
+        console.log('[ChatInterface] Cleaning up any orphaned sessions before creating new')
+        const { data: orphanedSessions, error: cleanupError } = await supabase
+          .from('sessions')
+          .update({ ended_at: new Date().toISOString() })
+          .eq('user_id', user.id)
+          .is('ended_at', null)
+          .select()
 
-          if (!cleanupError && orphanedSessions && orphanedSessions.length > 0) {
-            console.log('[ChatInterface] Ended', orphanedSessions.length, 'orphaned sessions')
-          }
-        } catch (error) {
-          console.error('[ChatInterface] Error cleaning up sessions:', error)
+        if (!cleanupError && orphanedSessions && orphanedSessions.length > 0) {
+          console.log('[ChatInterface] Ended', orphanedSessions.length, 'orphaned sessions')
         }
+      } catch (error) {
+        console.error('[ChatInterface] Error cleaning up sessions:', error)
       }
 
       // Create new session

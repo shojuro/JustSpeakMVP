@@ -45,6 +45,28 @@ const getErrorTypeLabel = (type: string): string => {
   return labels[type] || type
 }
 
+const formatDateTime = (dateString: string) => {
+  const date = new Date(dateString)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  
+  if (date.toDateString() === today.toDateString()) {
+    return `Today at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return `Yesterday at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+  } else {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + 
+           date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  }
+}
+
+const formatDuration = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+}
+
 export default function FeedbackPage() {
   const { user } = useAuth()
   const [sessions, setSessions] = useState<Session[]>([])
@@ -332,8 +354,7 @@ export default function FeedbackPage() {
             <option value="">Choose a session...</option>
             {sessions.map((session) => (
               <option key={session.id} value={session.id}>
-                {new Date(session.created_at).toLocaleDateString()} -{' '}
-                {Math.floor(session.total_speaking_time / 60)} minutes
+                {formatDateTime(session.created_at)} - Duration: {formatDuration(session.total_speaking_time)}
               </option>
             ))}
           </select>

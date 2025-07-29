@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', existingProgress.id)
         .select()
-        .single()
 
       if (updateError) {
         console.error('[User Progress API] Update error:', updateError)
@@ -62,7 +61,7 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('[User Progress API] Updated progress:', updated)
-      return NextResponse.json({ success: true, progress: updated })
+      return NextResponse.json({ success: true, progress: updated?.[0] || updated })
     } else {
       // Create new record for today
       const { data: created, error: createError } = await supabase
@@ -76,7 +75,6 @@ export async function POST(request: NextRequest) {
           improvement_areas: [],
         })
         .select()
-        .single()
 
       if (createError) {
         console.error('[User Progress API] Create error:', createError)
@@ -84,7 +82,7 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('[User Progress API] Created progress:', created)
-      return NextResponse.json({ success: true, progress: created })
+      return NextResponse.json({ success: true, progress: created?.[0] || created })
     }
   } catch (error: any) {
     console.error('[User Progress API] Error:', error)

@@ -8,12 +8,14 @@ import type { Database } from '@/types/database'
 
 type UserProgress = Database['public']['Tables']['user_progress']['Row']
 type Correction = Database['public']['Tables']['corrections']['Row']
+type Session = Database['public']['Tables']['sessions']['Row']
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const [todayProgress, setTodayProgress] = useState<UserProgress | null>(null)
   const [weekProgress, setWeekProgress] = useState<UserProgress[]>([])
   const [recentCorrections, setRecentCorrections] = useState<Correction[]>([])
+  const [recentSessions, setRecentSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -64,6 +66,18 @@ export default function DashboardPage() {
       if (correctionsData) {
         setRecentCorrections(correctionsData)
       }
+
+      // Load recent sessions
+      const { data: sessionsData } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      if (sessionsData) {
+        setRecentSessions(sessionsData)
+      }
     } catch (error) {
       console.error('Error loading dashboard data:', error)
     } finally {
@@ -75,6 +89,22 @@ export default function DashboardPage() {
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    
+    if (date.toDateString() === today.toDateString()) {
+      return `Today at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return `Yesterday at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+    } else {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' + 
+             date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    }
   }
 
   const getErrorTypeLabel = (type: string) => {
@@ -163,6 +193,55 @@ export default function DashboardPage() {
               View Conversation Feedback
             </Link>
           </div>
+        </div>
+
+        {/* Recent Conversations */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-text-primary mb-4">Recent Conversations</h2>
+          {recentSessions.length > 0 ? (
+            <div className="space-y-3">
+              {recentSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="flex justify-between items-center p-3 bg-bg-secondary rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div>
+                    <div className="text-sm font-medium text-text-primary">
+                      {formatDateTime(session.created_at)}
+                    </div>
+                    <div className="text-xs text-text-secondary">
+                      Duration: {formatTime(session.total_speaking_time)}
+                      {session.ended_at ? ' • Completed' : ' • In Progress'}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/feedback?session=${session.id}`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      View Feedback
+                    </Link>
+                    {!session.ended_at && (
+                      <Link
+                        href="/chat"
+                        className="text-sm text-success hover:underline"
+                      >
+                        Continue
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-text-secondary">No conversations yet. Start practicing!</p>
+          )}
+          <Link
+            href="/feedback"
+            className="text-sm text-primary hover:underline mt-4 inline-block"
+          >
+            View all conversations →
+          </Link>
         </div>
 
         {/* Week Summary */}
