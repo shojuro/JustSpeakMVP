@@ -93,7 +93,8 @@ Format as JSON:
       messages: [
         {
           role: 'system',
-          content: 'You are an ESL teacher providing gentle, constructive feedback. Focus on major communication issues, not minor imperfections.',
+          content:
+            'You are an ESL teacher providing gentle, constructive feedback. Focus on major communication issues, not minor imperfections.',
         },
         {
           role: 'user',
@@ -110,7 +111,7 @@ Format as JSON:
     // Count errors by type
     const errorCounts: Record<string, number> = {}
     const errorTypes: string[] = []
-    
+
     analysis.errors?.forEach((error: any) => {
       if (error.type) {
         errorTypes.push(error.type)
@@ -145,7 +146,7 @@ Format as JSON:
 
     // Update user progress
     const today = new Date().toISOString().split('T')[0]
-    
+
     // Get existing progress for today
     const { data: existingProgress } = await supabase
       .from('user_progress')
@@ -167,29 +168,27 @@ Format as JSON:
           total_speaking_time: existingProgress.total_speaking_time + (duration || 0),
           total_messages: existingProgress.total_messages + 1,
           error_counts: updatedErrorCounts,
-          improvement_areas: PRIMARY_ERROR_TYPES.filter(type => updatedErrorCounts[type] > 0),
+          improvement_areas: PRIMARY_ERROR_TYPES.filter((type) => updatedErrorCounts[type] > 0),
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingProgress.id)
     } else {
       // Create new progress entry
-      await supabase
-        .from('user_progress')
-        .insert({
-          user_id: userId,
-          date: today,
-          total_speaking_time: duration || 0,
-          total_messages: 1,
-          error_counts: errorCounts,
-          improvement_areas: PRIMARY_ERROR_TYPES.filter(type => errorCounts[type] > 0),
-        })
+      await supabase.from('user_progress').insert({
+        user_id: userId,
+        date: today,
+        total_speaking_time: duration || 0,
+        total_messages: 1,
+        error_counts: errorCounts,
+        improvement_areas: PRIMARY_ERROR_TYPES.filter((type) => errorCounts[type] > 0),
+      })
     }
 
     return NextResponse.json({
       success: true,
       correctionId: correction?.id,
       errorCount: errorTypes.length,
-      primaryErrors: errorTypes.filter(type => PRIMARY_ERROR_TYPES.includes(type)),
+      primaryErrors: errorTypes.filter((type) => PRIMARY_ERROR_TYPES.includes(type)),
     })
   } catch (error) {
     console.error('Error analysis API error:', error)

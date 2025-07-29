@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
 
     // Skip middleware for static assets and public files
     if (
-      path.startsWith('/_next') || 
+      path.startsWith('/_next') ||
       path.startsWith('/favicon') ||
       path === '/manifest.json' ||
       path === '/sw.js' ||
@@ -76,7 +76,7 @@ export async function middleware(request: NextRequest) {
       const isValid = validateCSRFToken(request)
       if (!isValid) {
         console.log('[Middleware] CSRF validation failed for:', path, 'Method:', request.method)
-        
+
         // Log CSRF validation failure
         logSecurityViolation(SecurityEventType.CSRF_VALIDATION_FAILURE, request, {
           path,
@@ -134,10 +134,19 @@ export async function middleware(request: NextRequest) {
       const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
         cookies: {
           get(name: string) {
-            return request.cookies.get(name)?.value
+            const value = request.cookies.get(name)?.value
+            console.log(`[Middleware] Getting cookie '${name}':`, !!value)
+            return value
           },
           set(name: string, value: string, options: CookieOptions) {
             // Set cookie on both request and response
+            console.log(`[Middleware] Setting cookie '${name}' with options:`, {
+              httpOnly: options.httpOnly ?? true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: options.sameSite ?? 'lax',
+              hasValue: !!value,
+            })
+
             request.cookies.set({
               name,
               value,
@@ -150,19 +159,25 @@ export async function middleware(request: NextRequest) {
               sameSite: options.sameSite ?? 'lax',
               secure: process.env.NODE_ENV === 'production',
               httpOnly: options.httpOnly ?? true,
+              path: options.path ?? '/',
+              // Ensure auth cookies persist
+              maxAge: options.maxAge ?? 60 * 60 * 24 * 365, // 1 year default
             })
           },
           remove(name: string, options: CookieOptions) {
             // Remove cookie from both request and response
+            console.log(`[Middleware] Removing cookie '${name}'`)
             request.cookies.delete(name)
             response.cookies.set({
               name,
               value: '',
               ...options,
               maxAge: 0,
+              expires: new Date(0),
               sameSite: options.sameSite ?? 'lax',
               secure: process.env.NODE_ENV === 'production',
               httpOnly: options.httpOnly ?? true,
+              path: options.path ?? '/',
             })
           },
         },
@@ -244,6 +259,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\..*|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'
+    '/((?!_next/static|_next/image|favicon\\..*|manifest\\.json|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

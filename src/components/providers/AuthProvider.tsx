@@ -32,6 +32,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Initial session check:', session?.user?.email ?? 'No session')
       setUser(session?.user ?? null)
       setLoading(false)
+
+      // If we have a session, refresh it to ensure cookies are properly set
+      if (session) {
+        console.log('Refreshing session to ensure cookies are set...')
+        supabase.auth.refreshSession().then(({ data: refreshedSession, error }) => {
+          if (error) {
+            console.error('Failed to refresh session:', error)
+          } else {
+            console.log('Session refreshed successfully')
+          }
+        })
+      }
     })
 
     // Listen for changes on auth state (logged in, signed out, etc.)
@@ -42,6 +54,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null)
       setLoading(false)
       // Remove automatic redirect - let LoginForm handle navigation
+
+      // On sign in, ensure cookies are properly set
+      if (event === 'SIGNED_IN' && session) {
+        console.log('User signed in, refreshing session to ensure cookies...')
+        supabase.auth.refreshSession().then(({ data: refreshedSession, error }) => {
+          if (error) {
+            console.error('Failed to refresh session after sign in:', error)
+          } else {
+            console.log('Session refreshed after sign in')
+          }
+        })
+      }
     })
 
     return () => subscription.unsubscribe()

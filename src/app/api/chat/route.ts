@@ -11,26 +11,22 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   console.log('[Chat API] POST handler called')
-  
+
   // Declare variables at function scope for error handling
-  let authHeader: string | null = null
   let isAnonymous = false
   let sessionId: string | null = null
-  
+
   try {
     // Add request validation
     const contentType = request.headers.get('content-type')
     if (!contentType || !contentType.includes('application/json')) {
       console.error('[Chat API] Invalid content-type:', contentType)
-      return NextResponse.json(
-        { error: 'Content-Type must be application/json' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Content-Type must be application/json' }, { status: 400 })
     }
 
     // Create Supabase client with proper cookie handling
     const cookieStore = await cookies()
-    
+
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -42,42 +38,53 @@ export async function POST(request: NextRequest) {
         },
       }
     )
-    
-    authHeader = request.headers.get('authorization')
-    console.log('[Chat API] Auth header present:', !!authHeader)
-    
+
+    // Remove auth header check - we're using cookie-based auth
+    console.log('[Chat API] Using cookie-based authentication')
+
     // Log all cookies for debugging
     const allCookies = cookieStore.getAll()
-    console.log('[Chat API] ALL cookies received:', allCookies.map(c => ({ 
-      name: c.name, 
-      hasValue: !!c.value,
-      valueLength: c.value?.length || 0
-    })))
-    
-    // Look for Supabase auth cookies with various patterns
-    const authCookies = allCookies.filter(c => 
-      c.name.includes('sb-') || 
-      c.name.includes('supabase') || 
-      c.name.includes('auth')
+    console.log(
+      '[Chat API] ALL cookies received:',
+      allCookies.map((c) => ({
+        name: c.name,
+        hasValue: !!c.value,
+        valueLength: c.value?.length || 0,
+      }))
     )
-    console.log('[Chat API] Potential auth cookies:', authCookies.map(c => ({ 
-      name: c.name, 
-      hasValue: !!c.value 
-    })))
-    
+
+    // Look for Supabase auth cookies with various patterns
+    const authCookies = allCookies.filter(
+      (c) => c.name.includes('sb-') || c.name.includes('supabase') || c.name.includes('auth')
+    )
+    console.log(
+      '[Chat API] Potential auth cookies:',
+      authCookies.map((c) => ({
+        name: c.name,
+        hasValue: !!c.value,
+      }))
+    )
+
     // Get Supabase project reference from URL
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
     const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || 'unknown'
     console.log('[Chat API] Supabase project ref:', projectRef)
     console.log('[Chat API] Expected cookie prefix:', `sb-${projectRef}-auth-token`)
-    
+
     // Get user from the server-side client (uses cookies)
-    const { data: { user: authenticatedUser }, error: authError } = await supabase.auth.getUser()
-    
+    const {
+      data: { user: authenticatedUser },
+      error: authError,
+    } = await supabase.auth.getUser()
+
     if (authError) {
       console.error('[Chat API] Auth error:', authError)
     } else if (authenticatedUser) {
-      console.log('[Chat API] Authenticated user from cookies:', authenticatedUser.id, authenticatedUser.email)
+      console.log(
+        '[Chat API] Authenticated user from cookies:',
+        authenticatedUser.id,
+        authenticatedUser.email
+      )
     } else {
       console.log('[Chat API] No authenticated user found')
     }
@@ -87,10 +94,7 @@ export async function POST(request: NextRequest) {
       body = await request.json()
     } catch (e) {
       console.error('[Chat API] Failed to parse JSON:', e)
-      return NextResponse.json(
-        { error: 'Invalid JSON in request body' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 })
     }
 
     const { message, sessionId: reqSessionId, userId, isAnonymous: reqIsAnonymous } = body
@@ -104,7 +108,7 @@ export async function POST(request: NextRequest) {
       userId,
       userIdLength: userId?.length,
       isAnonymous,
-      headers: Object.fromEntries(request.headers.entries())
+      headers: Object.fromEntries(request.headers.entries()),
     })
 
     if (!message) {
@@ -124,19 +128,16 @@ export async function POST(request: NextRequest) {
           { status: 401 }
         )
       }
-      
+
       // Verify the provided userId matches the authenticated user
       if (userId !== authenticatedUser.id) {
         console.error('[Chat API] User ID mismatch:', {
           provided: userId,
-          authenticated: authenticatedUser.id
+          authenticated: authenticatedUser.id,
         })
-        return NextResponse.json(
-          { error: 'Invalid user context' },
-          { status: 403 }
-        )
+        return NextResponse.json({ error: 'Invalid user context' }, { status: 403 })
       }
-      
+
       if (!sessionId) {
         console.error('[Chat API] Missing sessionId for authenticated user')
         return NextResponse.json(
@@ -149,9 +150,9 @@ export async function POST(request: NextRequest) {
       console.log('[Chat API] Verifying session ownership:', {
         sessionId,
         authenticatedUserId: authenticatedUser.id,
-        sessionIdLength: sessionId.length
+        sessionIdLength: sessionId.length,
       })
-      
+
       // Query with explicit user context
       let { data: sessions, error: sessionError } = await supabase
         .from('sessions')
@@ -165,8 +166,8 @@ export async function POST(request: NextRequest) {
         sessionData: sessions?.[0],
         queryParams: {
           sessionId,
-          userId: authenticatedUser.id
-        }
+          userId: authenticatedUser.id,
+        },
       })
 
       // Handle the case where .single() would fail
@@ -178,26 +179,31 @@ export async function POST(request: NextRequest) {
       if (!sessions || sessions.length === 0) {
         console.error('[Chat API] Session not found:', {
           sessionId,
-          userId: authenticatedUser.id
+          userId: authenticatedUser.id,
         })
-        
+
         // Debug: Try to query without user filter to see if session exists
         const { data: allSessions, error: debugError } = await supabase
           .from('sessions')
           .select('id, user_id')
           .eq('id', sessionId)
-          
+
         console.error('[Chat API] Debug - session exists check:', {
           found: allSessions?.length || 0,
           sessionData: allSessions?.[0],
-          error: debugError?.message
+          error: debugError?.message,
         })
-        
+
         return NextResponse.json({ error: 'Session not found' }, { status: 404 })
       }
 
       if (sessions.length > 1) {
-        console.error('[Chat API] Multiple sessions found for ID:', sessionId, 'Count:', sessions.length)
+        console.error(
+          '[Chat API] Multiple sessions found for ID:',
+          sessionId,
+          'Count:',
+          sessions.length
+        )
         // Use the first one but log the issue
       }
 
@@ -206,13 +212,13 @@ export async function POST(request: NextRequest) {
       console.log('[Chat API] Session verification:', {
         sessionUserId: session?.user_id,
         authenticatedUserId: authenticatedUser.id,
-        match: session?.user_id === authenticatedUser.id
+        match: session?.user_id === authenticatedUser.id,
       })
 
       if (session.user_id !== authenticatedUser.id) {
         console.error('[Chat API] Session ownership mismatch:', {
           sessionUserId: session.user_id,
-          authenticatedUserId: authenticatedUser.id
+          authenticatedUserId: authenticatedUser.id,
         })
         return NextResponse.json({ error: 'Invalid session ownership' }, { status: 403 })
       }
@@ -261,7 +267,7 @@ Your role is to:
 
     // Get AI response
     console.log('[Chat API] Calling OpenAI with', messages.length, 'messages')
-    
+
     if (!process.env.OPENAI_API_KEY) {
       console.error('[Chat API] OPENAI_API_KEY not configured')
       return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 })
@@ -283,16 +289,15 @@ Your role is to:
     console.log('[Chat API] OpenAI response received:', aiResponse.substring(0, 50) + '...')
     console.log('[Chat API] Auth context summary:', {
       isAnonymous,
-      hasAuthHeader: !!authHeader,
       authenticatedUserId: authenticatedUser?.id,
       sessionId,
-      willSaveToDb: !isAnonymous && sessionId !== 'anonymous'
+      willSaveToDb: !isAnonymous && sessionId !== 'anonymous',
     })
 
     // Save both messages to database (only for authenticated users)
     if (!isAnonymous && sessionId !== 'anonymous') {
       console.log('[Chat API] Saving messages to database for session:', sessionId)
-      
+
       // Insert user message
       const { data: userMessage, error: userInsertError } = await supabase
         .from('messages')
@@ -308,25 +313,23 @@ Your role is to:
         console.error('[Chat API] Error saving user message:', {
           error: userInsertError.message,
           code: userInsertError.code,
-          details: userInsertError.details
+          details: userInsertError.details,
         })
         // Don't fail the whole request if message saving fails
       }
 
       // Insert AI message
-      const { error: aiInsertError } = await supabase
-        .from('messages')
-        .insert({
-          session_id: sessionId,
-          speaker: 'AI',
-          content: aiResponse,
-        })
+      const { error: aiInsertError } = await supabase.from('messages').insert({
+        session_id: sessionId,
+        speaker: 'AI',
+        content: aiResponse,
+      })
 
       if (aiInsertError) {
         console.error('[Chat API] Error saving AI message:', {
           error: aiInsertError.message,
           code: aiInsertError.code,
-          details: aiInsertError.details
+          details: aiInsertError.details,
         })
       }
 
@@ -345,7 +348,8 @@ Your role is to:
             console.log('[Chat API] Triggering error analysis for message', userMessage.id)
             // Trigger error analysis in the background
             // Use absolute URL for server-side fetch
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${request.headers.get('host')}`
+            const baseUrl =
+              process.env.NEXT_PUBLIC_APP_URL || `https://${request.headers.get('host')}`
             fetch(`${baseUrl}/api/analyze-errors`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -356,7 +360,7 @@ Your role is to:
                 content: sanitizedMessage,
                 duration: 0, // Duration will be added when we implement it
               }),
-            }).catch(err => console.error('[Chat API] Error analysis failed:', err))
+            }).catch((err) => console.error('[Chat API] Error analysis failed:', err))
           }
         } catch (error) {
           console.error('[Chat API] Error checking for analysis trigger:', error)
@@ -372,33 +376,32 @@ Your role is to:
       name: error.name,
       code: error.code,
       status: error.status,
-      type: error.constructor.name
+      type: error.constructor.name,
     })
-    
+
     // Check for specific OpenAI errors
     if (error.status === 401) {
       return NextResponse.json({ error: 'Invalid OpenAI API key' }, { status: 500 })
     }
-    
+
     if (error.status === 429) {
       return NextResponse.json({ error: 'OpenAI rate limit exceeded' }, { status: 429 })
     }
-    
+
     // Return more detailed error in development
     const errorDetails = {
       message: error.message,
-      hasAuth: !!authHeader,
       isAnonymous,
-      hasSession: !!sessionId
+      hasSession: !!sessionId,
     }
-    
-    const errorMessage = process.env.NODE_ENV === 'development' 
-      ? `Failed to process chat: ${error.message}`
-      : 'Failed to process chat message'
-    
+
+    const errorMessage =
+      process.env.NODE_ENV === 'development'
+        ? `Failed to process chat: ${error.message}`
+        : 'Failed to process chat message'
+
     console.error('[Chat API] Error details:', errorDetails)
-    
+
     return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
-

@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       console.error('Failed to parse form data:', error)
       return NextResponse.json({ error: 'Invalid form data' }, { status: 400 })
     }
-    
+
     const audioFile = formData.get('audio') as File
 
     if (!audioFile) {
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       type: error.type,
       code: error.code,
       response: error.response?.data,
-      stack: error.stack
+      stack: error.stack,
     })
 
     // Provide more specific error messages
@@ -93,12 +93,18 @@ export async function POST(request: NextRequest) {
 
     // Check for rate limit errors
     if (error.status === 429) {
-      return NextResponse.json({ error: 'OpenAI rate limit exceeded. Please try again later.' }, { status: 429 })
+      return NextResponse.json(
+        { error: 'OpenAI rate limit exceeded. Please try again later.' },
+        { status: 429 }
+      )
     }
 
     // Check for invalid API key format
     if (error.message?.includes('Incorrect API key')) {
-      return NextResponse.json({ error: 'OpenAI API key is invalid or incorrectly formatted' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'OpenAI API key is invalid or incorrectly formatted' },
+        { status: 500 }
+      )
     }
 
     // Fallback response if transcription fails

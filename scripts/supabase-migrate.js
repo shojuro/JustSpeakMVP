@@ -19,19 +19,19 @@ if (!supabaseUrl || !supabaseServiceKey) {
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
-    persistSession: false
-  }
+    persistSession: false,
+  },
 })
 
 async function runMigration() {
   console.log('Testing Supabase connection...')
-  
+
   // Test connection by checking existing tables
   const { data: tables, error: tablesError } = await supabase
     .from('sessions')
     .select('count')
     .limit(0)
-  
+
   if (tablesError) {
     console.log('Connection test result:', tablesError.message)
   } else {
@@ -41,7 +41,7 @@ async function runMigration() {
   // Since direct SQL execution isn't available in Supabase JS client,
   // let's provide the manual steps
   const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1]
-  
+
   console.log('\n' + '='.repeat(60))
   console.log('MANUAL MIGRATION REQUIRED')
   console.log('='.repeat(60))
@@ -55,17 +55,14 @@ async function runMigration() {
   console.log('4. Verify tables were created:')
   console.log(`   https://supabase.com/dashboard/project/${projectRef}/editor`)
   console.log('\n' + '='.repeat(60))
-  
+
   // Check if tables already exist
   console.log('\nChecking for existing tables...')
-  
+
   const tablesToCheck = ['corrections', 'user_progress']
   for (const table of tablesToCheck) {
-    const { error } = await supabase
-      .from(table)
-      .select('count')
-      .limit(0)
-    
+    const { error } = await supabase.from(table).select('count').limit(0)
+
     if (error) {
       console.log(`❌ Table '${table}' does not exist`)
     } else {

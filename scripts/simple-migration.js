@@ -5,7 +5,7 @@ const path = require('path')
 const envPath = path.join(__dirname, '..', '.env')
 const envContent = fs.readFileSync(envPath, 'utf8')
 const envVars = {}
-envContent.split('\n').forEach(line => {
+envContent.split('\n').forEach((line) => {
   const [key, ...valueParts] = line.split('=')
   if (key && valueParts.length) {
     envVars[key.trim()] = valueParts.join('=').trim()

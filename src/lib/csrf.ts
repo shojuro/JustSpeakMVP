@@ -35,7 +35,7 @@ export function validateCSRFToken(request: NextRequest): boolean {
     '/api/speech-to-text', // Speech endpoint validates sessions internally
     '/api/diagnostics',
     '/api/health',
-    '/api/test'
+    '/api/test',
   ]
   if (publicApiRoutes.some((route) => pathname.startsWith(route))) {
     return true

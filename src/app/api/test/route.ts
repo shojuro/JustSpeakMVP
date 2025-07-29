@@ -8,7 +8,7 @@ export async function GET() {
     env: {
       hasOpenAIKey: !!process.env.OPENAI_API_KEY,
       nodeEnv: process.env.NODE_ENV,
-    }
+    },
   })
 }
 
@@ -16,6 +16,6 @@ export async function POST() {
   return NextResponse.json({
     status: 'ok',
     method: 'POST',
-    message: 'POST endpoint is working'
+    message: 'POST endpoint is working',
   })
 }

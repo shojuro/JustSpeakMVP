@@ -21,7 +21,7 @@ export async function GET() {
   }
 
   // Determine if configuration is valid
-  const isConfigured = 
+  const isConfigured =
     diagnostics.checks.openaiKey.exists &&
     diagnostics.checks.openaiKey.valid &&
     diagnostics.checks.openaiKey.length > 40 &&
@@ -31,8 +31,8 @@ export async function GET() {
   return NextResponse.json({
     ...diagnostics,
     configured: isConfigured,
-    message: isConfigured 
-      ? 'All required environment variables are configured' 
+    message: isConfigured
+      ? 'All required environment variables are configured'
       : 'Missing or invalid environment variables',
   })
 }

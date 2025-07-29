@@ -1,13 +1,14 @@
 # Quick Steps to Run the Migration
 
 The migration script creates two important tables for the ESL error correction feature:
+
 - `corrections` - Stores error analysis for each message
 - `user_progress` - Tracks user improvement over time
 
 ## Fastest Method: Use Supabase Dashboard
 
 1. **Open your Supabase SQL Editor:**
-   
+
    Click this link: https://supabase.com/dashboard/project/vokeaqpxhrroaisyaizz/sql/new
 
 2. **Copy the entire SQL below and paste it into the editor:**
@@ -90,7 +91,7 @@ BEGIN
     jsonb_build_object(p_error_type, p_error_count)
   )
   ON CONFLICT (user_id, date) DO UPDATE
-  SET 
+  SET
     total_speaking_time = user_progress.total_speaking_time + p_speaking_time,
     total_messages = user_progress.total_messages + 1,
     error_counts = user_progress.error_counts || jsonb_build_object(p_error_type, p_error_count),
@@ -111,6 +112,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 If you get an error saying tables already exist, first drop them:
 
 1. Run this SQL in the dashboard:
+
 ```sql
 DROP TABLE IF EXISTS public.corrections CASCADE;
 DROP TABLE IF EXISTS public.user_progress CASCADE;
@@ -121,16 +123,20 @@ DROP TABLE IF EXISTS public.user_progress CASCADE;
 ## What This Migration Does
 
 ✅ Creates two new tables:
+
 - `corrections` - Stores grammatical error analysis for each user message
 - `user_progress` - Tracks daily improvement metrics
 
 ✅ Sets up security:
+
 - Row Level Security (RLS) ensures users only see their own data
 - Policies allow the API to manage data while protecting user privacy
 
 ✅ Optimizes performance:
+
 - Indexes on frequently queried columns
 - Efficient JSONB storage for flexible error tracking
 
 ✅ Provides helper functions:
+
 - `update_user_progress()` - Simplifies progress tracking logic

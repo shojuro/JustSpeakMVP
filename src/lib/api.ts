@@ -25,7 +25,9 @@ export async function apiFetch(url: string, options: FetchOptions = {}) {
   // The server-side createClient will automatically use auth cookies
   if (!skipAuth) {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       if (session) {
         console.log('[apiFetch] User authenticated:', session.user.id)
       } else {

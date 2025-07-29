@@ -24,7 +24,7 @@ export async function GET() {
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     })
-    
+
     // Try a minimal API call
     const models = await openai.models.list()
     diagnostics.openai = {
@@ -42,11 +42,11 @@ export async function GET() {
   // Test Supabase connection and tables
   try {
     const supabase = await createClient()
-    
+
     // Check if tables exist by attempting to query them
     const tables = ['sessions', 'messages', 'profiles', 'corrections', 'user_progress']
     const tableStatus: Record<string, boolean> = {}
-    
+
     for (const table of tables) {
       try {
         const { error } = await supabase.from(table).select('count').limit(0)
@@ -55,7 +55,7 @@ export async function GET() {
         tableStatus[table] = false
       }
     }
-    
+
     diagnostics.database = {
       connected: true,
       tables: tableStatus,
@@ -68,8 +68,8 @@ export async function GET() {
   }
 
   // Overall health status
-  diagnostics.healthy = 
-    diagnostics.env.hasOpenAIKey && 
+  diagnostics.healthy =
+    diagnostics.env.hasOpenAIKey &&
     diagnostics.env.openAIKeyPrefix === 'valid' &&
     diagnostics.openai?.connected &&
     diagnostics.database?.connected &&

@@ -27,7 +27,7 @@ export default function ReportsPage() {
 
     try {
       let startDate = new Date()
-      
+
       switch (dateRange) {
         case 'week':
           startDate.setDate(startDate.getDate() - 7)
@@ -76,7 +76,7 @@ export default function ReportsPage() {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
     const remainingSeconds = seconds % 60
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`
     }
@@ -101,9 +101,9 @@ export default function ReportsPage() {
   const getProgressSummary = () => {
     const totalTime = monthProgress.reduce((sum, day) => sum + day.total_speaking_time, 0)
     const totalMessages = monthProgress.reduce((sum, day) => sum + day.total_messages, 0)
-    
+
     const errorTotals: Record<string, number> = {}
-    monthProgress.forEach(day => {
+    monthProgress.forEach((day) => {
       Object.entries(day.error_counts as Record<string, number>).forEach(([type, count]) => {
         errorTotals[type] = (errorTotals[type] || 0) + count
       })
@@ -119,33 +119,33 @@ export default function ReportsPage() {
   const generateReportText = () => {
     const summary = getProgressSummary()
     const reportDate = new Date().toLocaleDateString()
-    
+
     let report = `Just Speak - Progress Report\n`
     report += `Generated: ${reportDate}\n`
     report += `Student: ${user?.email}\n`
     report += `Period: Last ${dateRange}\n\n`
-    
+
     report += `SUMMARY\n`
     report += `Total Speaking Time: ${formatTime(summary.totalTime)}\n`
     report += `Total Messages: ${summary.totalMessages}\n\n`
-    
+
     report += `TOP AREAS FOR IMPROVEMENT\n`
     summary.topErrors.forEach(([type, count], index) => {
       report += `${index + 1}. ${getErrorTypeLabel(type)}: ${count} occurrences\n`
     })
-    
+
     report += `\nRECENT CORRECTIONS\n`
     corrections.slice(0, 10).forEach((correction, index) => {
       report += `\n${index + 1}. Original: "${correction.original_text}"\n`
       report += `   Corrected: "${correction.corrected_text}"\n`
-      report += `   Error types: ${correction.error_types.map(t => getErrorTypeLabel(t)).join(', ')}\n`
+      report += `   Error types: ${correction.error_types.map((t) => getErrorTypeLabel(t)).join(', ')}\n`
     })
-    
+
     report += `\nRECOMMENDATIONS\n`
     report += `1. Continue daily practice to maintain momentum\n`
     report += `2. Focus on ${getErrorTypeLabel(summary.topErrors[0]?.[0] || 'word_order')} exercises\n`
     report += `3. Aim for at least 10 minutes of speaking practice per day\n`
-    
+
     return report
   }
 
@@ -179,7 +179,9 @@ export default function ReportsPage() {
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-xl font-semibold text-primary">Progress Report</h1>
-            <p className="text-sm text-text-secondary">Detailed analysis of your speaking practice</p>
+            <p className="text-sm text-text-secondary">
+              Detailed analysis of your speaking practice
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/dashboard" className="text-sm text-primary hover:underline">
@@ -231,7 +233,9 @@ export default function ReportsPage() {
             </div>
             <div className="text-center p-4 bg-bg-secondary rounded-lg">
               <div className="text-3xl font-bold text-primary">
-                {monthProgress.length > 0 ? Math.round(summary.totalTime / monthProgress.length / 60) : 0}
+                {monthProgress.length > 0
+                  ? Math.round(summary.totalTime / monthProgress.length / 60)
+                  : 0}
               </div>
               <div className="text-sm text-text-secondary">Avg Minutes/Day</div>
             </div>
@@ -244,13 +248,15 @@ export default function ReportsPage() {
           {summary.topErrors.length > 0 ? (
             <div className="space-y-4">
               {summary.topErrors.map(([type, count]) => {
-                const total = corrections.filter(c => c.error_types.includes(type)).length
+                const total = corrections.filter((c) => c.error_types.includes(type)).length
                 const percentage = total > 0 ? Math.round((count / total) * 100) : 0
-                
+
                 return (
                   <div key={type}>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="font-medium text-text-primary">{getErrorTypeLabel(type)}</span>
+                      <span className="font-medium text-text-primary">
+                        {getErrorTypeLabel(type)}
+                      </span>
                       <span className="text-sm text-text-secondary">{count} occurrences</span>
                     </div>
                     <div className="w-full bg-bg-secondary rounded-full h-3">
@@ -276,7 +282,10 @@ export default function ReportsPage() {
               {corrections.slice(0, 10).map((correction) => {
                 const analysis = correction.analysis as any
                 return (
-                  <div key={correction.id} className="border-b border-border-light pb-4 last:border-0">
+                  <div
+                    key={correction.id}
+                    className="border-b border-border-light pb-4 last:border-0"
+                  >
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <p className="text-xs text-text-muted mb-1">Original:</p>
@@ -284,7 +293,9 @@ export default function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-xs text-text-muted mb-1">Corrected:</p>
-                        <p className="text-sm text-success font-medium">{correction.corrected_text}</p>
+                        <p className="text-sm text-success font-medium">
+                          {correction.corrected_text}
+                        </p>
                       </div>
                     </div>
                     {analysis?.summary && (
@@ -303,9 +314,14 @@ export default function ReportsPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-blue-800 mb-3">Recommendations</h3>
           <ul className="space-y-2 text-blue-700">
-            <li>• Keep up the great work! You've spoken for {formatTime(summary.totalTime)} total.</li>
+            <li>
+              • Keep up the great work! You've spoken for {formatTime(summary.totalTime)} total.
+            </li>
             {summary.topErrors[0] && (
-              <li>• Focus on {getErrorTypeLabel(summary.topErrors[0][0])} - this is your most common error type.</li>
+              <li>
+                • Focus on {getErrorTypeLabel(summary.topErrors[0][0])} - this is your most common
+                error type.
+              </li>
             )}
             <li>• Try to maintain at least 10 minutes of practice daily for best results.</li>
             <li>• Remember: communication is more important than perfection!</li>

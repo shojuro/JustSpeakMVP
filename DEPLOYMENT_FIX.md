@@ -1,6 +1,7 @@
 # Production Deployment Fix Guide
 
 ## Issues Found
+
 1. Missing `OPENAI_API_KEY` in production environment
 2. Database migrations not run (missing `user_progress` and `corrections` tables)
 
@@ -36,6 +37,7 @@
 ### Step 4: Verify Fix
 
 Test the following:
+
 1. Sign up/Sign in works
 2. Speech recording captures audio
 3. AI responds to your messages

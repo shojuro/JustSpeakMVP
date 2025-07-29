@@ -114,10 +114,10 @@ CREATE TRIGGER update_user_progress_updated_at
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'apikey': serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        apikey: serviceRoleKey,
       },
-      body: JSON.stringify({ query: migrationSQL })
+      body: JSON.stringify({ query: migrationSQL }),
     })
 
     if (!response.ok) {
@@ -133,28 +133,30 @@ CREATE TRIGGER update_user_progress_updated_at
     }
 
     console.log('✅ Migration completed successfully!')
-    
+
     // Verify tables exist
     const tablesResponse = await fetch(`${supabaseUrl}/rest/v1/corrections?select=count&limit=0`, {
       headers: {
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'apikey': serviceRoleKey,
-      }
+        Authorization: `Bearer ${serviceRoleKey}`,
+        apikey: serviceRoleKey,
+      },
     })
 
-    const progressResponse = await fetch(`${supabaseUrl}/rest/v1/user_progress?select=count&limit=0`, {
-      headers: {
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'apikey': serviceRoleKey,
+    const progressResponse = await fetch(
+      `${supabaseUrl}/rest/v1/user_progress?select=count&limit=0`,
+      {
+        headers: {
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+        },
       }
-    })
+    )
 
     if (tablesResponse.ok && progressResponse.ok) {
       console.log('\n✅ Tables verified:')
       console.log('  - corrections table exists')
       console.log('  - user_progress table exists')
     }
-
   } catch (error) {
     console.error('Error:', error.message)
     console.log('\n📋 Please run the migration manually in Supabase Dashboard')

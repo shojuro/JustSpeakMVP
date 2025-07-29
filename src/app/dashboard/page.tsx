@@ -98,12 +98,12 @@ export default function DashboardPage() {
 
   const getTopErrors = () => {
     const errorTotals: Record<string, number> = {}
-    weekProgress.forEach(day => {
+    weekProgress.forEach((day) => {
       Object.entries(day.error_counts as Record<string, number>).forEach(([type, count]) => {
         errorTotals[type] = (errorTotals[type] || 0) + count
       })
     })
-    
+
     return Object.entries(errorTotals)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 4)
@@ -177,7 +177,10 @@ export default function DashboardPage() {
               <h3 className="text-md font-medium text-text-primary mb-3">Areas for Improvement</h3>
               <div className="space-y-2">
                 {getTopErrors().map(({ type, count }) => (
-                  <div key={type} className="flex justify-between items-center p-3 bg-bg-secondary rounded">
+                  <div
+                    key={type}
+                    className="flex justify-between items-center p-3 bg-bg-secondary rounded"
+                  >
                     <span className="text-text-primary">{getErrorTypeLabel(type)}</span>
                     <span className="text-sm text-text-secondary">{count} occurrences</span>
                   </div>
@@ -202,13 +205,16 @@ export default function DashboardPage() {
                   </div>
                   {correction.error_types.length > 0 && (
                     <div className="text-xs text-text-muted mt-1">
-                      Types: {correction.error_types.map(t => getErrorTypeLabel(t)).join(', ')}
+                      Types: {correction.error_types.map((t) => getErrorTypeLabel(t)).join(', ')}
                     </div>
                   )}
                 </div>
               ))}
             </div>
-            <Link href="/reports" className="text-sm text-primary hover:underline mt-4 inline-block">
+            <Link
+              href="/reports"
+              className="text-sm text-primary hover:underline mt-4 inline-block"
+            >
               View detailed report →
             </Link>
           </div>

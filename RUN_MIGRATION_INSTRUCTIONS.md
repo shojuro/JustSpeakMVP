@@ -3,6 +3,7 @@
 This migration creates the missing `user_progress` and `corrections` tables in your Supabase database.
 
 ## Migration Contents
+
 - Creates `corrections` table for storing error analysis
 - Creates `user_progress` table for tracking user improvement
 - Sets up Row Level Security (RLS) policies
@@ -26,11 +27,13 @@ This migration creates the missing `user_progress` and `corrections` tables in y
 ## Option 2: Using psql (Command Line)
 
 ### Prerequisites
+
 - Install PostgreSQL client tools (includes psql):
   - Windows: Download from https://www.postgresql.org/download/windows/
   - Or install via Chocolatey: `choco install postgresql`
 
 ### Run Migration
+
 ```bash
 # Windows Command Prompt or PowerShell
 psql "postgresql://postgres:DALMj5NPLNNypsqKpWBnzbK3ymlD2m6MqqHIoyxVNxpBV1oARyVDRyg6DKyfXgX4a@db.vokeaqpxhrroaisyaizz.supabase.co:5432/postgres" -f supabase\migrations\002_esl_corrections.sql
@@ -42,6 +45,7 @@ scripts\run-migration-psql.bat
 ## Option 3: Using Supabase CLI
 
 1. Install Supabase CLI:
+
    ```bash
    npm install -g supabase
    ```
@@ -67,10 +71,12 @@ After running the migration, verify it was successful:
 ## Troubleshooting
 
 ### If you get permission errors:
+
 - Make sure you're using the correct DATABASE_URL from your .env file
 - The service role key in the .env file should have sufficient permissions
 
 ### If tables already exist:
+
 - The migration will fail if the tables already exist
 - You can drop them first (be careful with production data):
   ```sql
@@ -79,6 +85,7 @@ After running the migration, verify it was successful:
   ```
 
 ### Connection issues:
+
 - Check your internet connection
 - Verify the DATABASE_URL is correct
 - Ensure your IP is not blocked by Supabase (check project settings)
