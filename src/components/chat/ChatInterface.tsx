@@ -57,6 +57,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
 
   // Handle transcript updates
   const lastTranscriptRef = useRef<string>('')
+  const sessionRetryRef = useRef<boolean>(false)
 
   useEffect(() => {
     console.log(
@@ -200,7 +201,32 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         }),
       })
 
-      if (!response.ok) throw new Error('Failed to get AI response')
+      if (!response.ok) {
+        const errorData = await response.json()
+        
+        // If session not found and we haven't retried yet, recreate session
+        if (response.status === 404 && errorData.error === 'Session not found' && !sessionRetryRef.current && !isAnonymous) {
+          console.log('[ChatInterface] Session not found, recreating...')
+          sessionRetryRef.current = true
+          
+          // Remove the failed message
+          setMessages((prev) => prev.slice(0, -1))
+          
+          // Reset session and recreate
+          setSession(null)
+          await createOrGetSession()
+          
+          // Retry sending the message after a short delay
+          setTimeout(() => {
+            sessionRetryRef.current = false
+            handleSendMessage(text)
+          }, 500)
+          
+          return
+        }
+        
+        throw new Error(errorData.error || 'Failed to get AI response')
+      }
 
       const data = await response.json()
 
@@ -324,6 +350,17 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
                 <Link href="/dashboard" className="text-sm text-primary hover:text-blue-700">
                   View Progress
                 </Link>
+                <button
+                  onClick={async () => {
+                    setSession(null)
+                    setMessages([])
+                    await createOrGetSession()
+                  }}
+                  className="text-sm text-text-secondary hover:text-text-primary"
+                  title="Refresh session"
+                >
+                  Refresh
+                </button>
                 <button
                   onClick={handleEndSession}
                   className="text-sm text-text-secondary hover:text-text-primary"
