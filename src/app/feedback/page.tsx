@@ -54,9 +54,33 @@ export default function FeedbackPage() {
   const [loading, setLoading] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
 
+  // Load sessions when user changes or when page becomes visible
   useEffect(() => {
     if (user) {
       loadSessions()
+      
+      // Refresh when page becomes visible
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          console.log('[Feedback] Page visible, refreshing sessions')
+          loadSessions()
+        }
+      }
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+      
+      // Also refresh when window gains focus
+      const handleFocus = () => {
+        console.log('[Feedback] Window focused, refreshing sessions')
+        loadSessions()
+      }
+      
+      window.addEventListener('focus', handleFocus)
+      
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        window.removeEventListener('focus', handleFocus)
+      }
     }
   }, [user])
 
@@ -79,9 +103,25 @@ export default function FeedbackPage() {
 
       if (error) throw error
       if (data) {
+        console.log('[Feedback] Loaded sessions:', data.length)
         setSessions(data)
-        // Auto-select the most recent session with messages
-        if (data.length > 0) {
+        
+        // If we have a selected session, check if it's still in the new data
+        if (selectedSession) {
+          const stillExists = data.find(s => s.id === selectedSession.id)
+          if (stillExists) {
+            // Update the selected session with fresh data
+            setSelectedSession(stillExists)
+          } else {
+            // Session no longer exists, select the most recent
+            if (data.length > 0) {
+              setSelectedSession(data[0])
+            } else {
+              setSelectedSession(null)
+            }
+          }
+        } else if (data.length > 0) {
+          // No session selected, auto-select the most recent
           setSelectedSession(data[0])
         }
       }

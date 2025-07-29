@@ -25,6 +25,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   const [voiceEnabled, setVoiceEnabled] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const sessionRef = useRef<Session | null>(null)
+  const recordingDurationRef = useRef<number>(0)
 
   const {
     isRecording,
@@ -129,7 +130,9 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       '[ChatInterface] Transcript update - transcript:',
       transcript,
       'isRecording:',
-      isRecording
+      isRecording,
+      'duration:',
+      duration
     )
     if (transcript && transcript.trim().length > 0 && !isRecording) {
       // Prevent duplicate messages
@@ -138,6 +141,10 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         return
       }
       lastTranscriptRef.current = transcript
+
+      // Save the duration value before it gets reset
+      recordingDurationRef.current = duration
+      console.log('[ChatInterface] Saved recording duration:', recordingDurationRef.current)
 
       console.log('[ChatInterface] Processing transcript:', transcript)
       // Add validation to prevent spam messages
@@ -153,7 +160,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       }
       handleSendMessage(transcript)
     }
-  }, [transcript, isRecording])
+  }, [transcript, isRecording, duration])
 
   const createOrGetSession = async (forceNew = false) => {
     if (!user) return null
@@ -385,21 +392,26 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     })
 
     setIsLoading(true)
+    // Use the saved duration from recordingDurationRef
+    const messageDuration = recordingDurationRef.current
+    console.log('[ChatInterface] Using saved duration for message:', messageDuration)
+    
     const userMessage: Message = {
       id: crypto.randomUUID(),
       session_id: currentSession?.id || 'anonymous',
       speaker: 'USER',
       content: text,
-      duration: duration,
+      duration: messageDuration,
       created_at: new Date().toISOString(),
     }
 
     // Add user message immediately
     setMessages((prev) => [...prev, userMessage])
 
-    // Update speaking time
-    const newSpeakingTime = totalSpeakingTime + duration
+    // Update speaking time with saved duration
+    const newSpeakingTime = totalSpeakingTime + messageDuration
     setTotalSpeakingTime(newSpeakingTime)
+    console.log('[ChatInterface] Updated total speaking time:', newSpeakingTime, 'added:', messageDuration)
 
     try {
       // Call OpenAI via API route
@@ -486,11 +498,11 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
 
         // Also update user progress for dashboard
         try {
-          console.log('[ChatInterface] Updating user progress, duration:', duration)
+          console.log('[ChatInterface] Updating user progress, duration:', messageDuration)
           const progressResponse = await apiFetch('/api/user-progress', {
             method: 'POST',
             body: JSON.stringify({
-              speakingTime: duration,
+              speakingTime: messageDuration,
               sessionId: currentSession.id,
             }),
           })
