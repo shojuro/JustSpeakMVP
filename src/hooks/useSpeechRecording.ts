@@ -250,9 +250,12 @@ export function useSpeechRecording() {
     }
   }, [])
 
-  const transcribeAudio = async (audioBlob: Blob) => {
+  const transcribeAudio = async (audioBlob: Blob, retryCount = 0) => {
+    const MAX_RETRIES = 2
+    const RETRY_DELAY = 1000 // 1 second
+
     try {
-      console.log('[Transcription] Starting, blob size:', audioBlob.size)
+      console.log('[Transcription] Starting, blob size:', audioBlob.size, 'retry:', retryCount)
 
       // Minimum size for 0.1 seconds of audio (roughly 2000 bytes for webm)
       if (audioBlob.size < 2000) {
@@ -269,10 +272,19 @@ export function useSpeechRecording() {
         body: formData,
       })
 
+      console.log('[Transcription] Response status:', response.status)
+      console.log('[Transcription] Response headers:', Object.fromEntries(response.headers.entries()))
+
       const data = await response.json()
 
       if (!response.ok) {
-        console.error('[Transcription] API error:', data)
+        console.error('[Transcription] API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: data,
+          error: data.error,
+          details: data.details || 'No additional details'
+        })
         throw new Error(data.error || `Transcription failed: ${response.status}`)
       }
 
@@ -283,9 +295,28 @@ export function useSpeechRecording() {
       } else {
         setError('No speech detected. Please try again.')
       }
-    } catch (error) {
-      console.error('[Transcription] Error:', error)
-      setError('Failed to process audio. Please try again.')
+    } catch (error: any) {
+      console.error('[Transcription] Error:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        response: error.response,
+        blobSize: audioBlob.size,
+        blobType: audioBlob.type,
+        retryCount
+      })
+
+      // Retry logic for transient failures
+      if (retryCount < MAX_RETRIES && 
+          (error.message.includes('network') || 
+           error.message.includes('timeout') ||
+           error.message.includes('fetch'))) {
+        console.log(`[Transcription] Retrying... attempt ${retryCount + 1} of ${MAX_RETRIES}`)
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+        return transcribeAudio(audioBlob, retryCount + 1)
+      }
+
+      setError(`Failed to process audio: ${error.message || 'Unknown error'}. Please try again.`)
     }
   }
 

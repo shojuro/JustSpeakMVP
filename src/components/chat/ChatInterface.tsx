@@ -21,6 +21,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   const [messages, setMessages] = useState<Message[]>([])
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [sessionLoading, setSessionLoading] = useState(false)
   const [totalSpeakingTime, setTotalSpeakingTime] = useState(0)
   const [voiceEnabled, setVoiceEnabled] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -136,6 +137,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       forceNew
     )
 
+    setSessionLoading(true)
     try {
       if (!forceNew) {
         // Check for existing active session
@@ -261,6 +263,8 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       alert(`Session Error: ${errorMessage}. Please refresh the page and try again.`)
 
       return null
+    } finally {
+      setSessionLoading(false)
     }
   }
 
@@ -682,13 +686,19 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
             isRecording={isRecording}
             onStart={() => {
               console.log('[ChatInterface] Start recording requested')
+              // For authenticated users, ensure session is ready
+              if (!isAnonymous && (!session || sessionLoading)) {
+                console.log('[ChatInterface] Session not ready, cannot start recording')
+                alert('Please wait for session to initialize...')
+                return
+              }
               startRecording()
             }}
             onStop={() => {
               console.log('[ChatInterface] Stop recording requested')
               stopRecording()
             }}
-            disabled={isLoading || isSpeaking}
+            disabled={isLoading || isSpeaking || (!isAnonymous && (sessionLoading || !session))}
           />
 
           {/* Compact recording states */}
