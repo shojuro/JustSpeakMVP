@@ -10,6 +10,11 @@ const openai = new OpenAI({
 export async function POST(request: NextRequest) {
   console.log('[Chat API] POST handler called')
   
+  // Declare variables at function scope for error handling
+  let authHeader: string | null = null
+  let isAnonymous = false
+  let sessionId: string | null = null
+  
   try {
     // Add request validation
     const contentType = request.headers.get('content-type')
@@ -19,6 +24,24 @@ export async function POST(request: NextRequest) {
         { error: 'Content-Type must be application/json' },
         { status: 400 }
       )
+    }
+
+    // Get authenticated user from request
+    const supabase = await createClient()
+    authHeader = request.headers.get('authorization')
+    console.log('[Chat API] Auth header present:', !!authHeader)
+    
+    let authenticatedUser = null
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+      
+      if (authError) {
+        console.error('[Chat API] Auth verification error:', authError)
+      } else if (user) {
+        authenticatedUser = user
+        console.log('[Chat API] Authenticated user:', user.id, user.email)
+      }
     }
 
     let body
@@ -32,7 +55,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { message, sessionId, userId, isAnonymous } = body
+    const { message, sessionId: reqSessionId, userId, isAnonymous: reqIsAnonymous } = body
+    sessionId = reqSessionId
+    isAnonymous = reqIsAnonymous
 
     console.log('[Chat API] Request received:', {
       messageLength: message?.length,
@@ -51,30 +76,43 @@ export async function POST(request: NextRequest) {
     // Sanitize user input
     const sanitizedMessage = sanitizeText(message)
 
-    // For anonymous users, skip session verification
+    // For authenticated users, verify auth context and session
     if (!isAnonymous) {
+      // Check if we have authenticated user context
+      if (!authenticatedUser) {
+        console.error('[Chat API] No authenticated user context for non-anonymous request')
+        return NextResponse.json(
+          { error: 'Authentication required. Please log in again.' },
+          { status: 401 }
+        )
+      }
+      
+      // Verify the provided userId matches the authenticated user
+      if (userId !== authenticatedUser.id) {
+        console.error('[Chat API] User ID mismatch:', {
+          provided: userId,
+          authenticated: authenticatedUser.id
+        })
+        return NextResponse.json(
+          { error: 'Invalid user context' },
+          { status: 403 }
+        )
+      }
+      
       if (!sessionId) {
         console.error('[Chat API] Missing sessionId for authenticated user')
-        console.log('[Chat API] User ID provided:', userId)
-        
-        // If no session ID but we have a user ID, this is an error
-        if (userId && userId !== 'anonymous') {
-          return NextResponse.json(
-            { error: 'Session needs to be created first. Please refresh the page.' },
-            { status: 400 }
-          )
-        }
-        
         return NextResponse.json(
-          { error: 'SessionId is required for authenticated users' },
+          { error: 'Session needs to be created first. Please refresh the page.' },
           { status: 400 }
         )
       }
 
       // Verify user owns the session
-      console.log('[Chat API] About to query session with ID:', sessionId, 'Length:', sessionId.length)
+      console.log('[Chat API] Verifying session ownership:', {
+        sessionId,
+        authenticatedUserId: authenticatedUser.id
+      })
       
-      const supabase = await createClient()
       let { data: sessions, error: sessionError } = await supabase
         .from('sessions')
         .select('user_id')
@@ -94,32 +132,11 @@ export async function POST(request: NextRequest) {
       }
 
       if (!sessions || sessions.length === 0) {
-        console.error('[Chat API] No session found with ID:', sessionId)
-        console.error('[Chat API] Full session ID length:', sessionId?.length || 0)
-        
-        // Try to recover by finding any active session for this user
-        console.log('[Chat API] Attempting session recovery for user:', userId)
-        const { data: activeSessions, error: recoveryError } = await supabase
-          .from('sessions')
-          .select('id, user_id, created_at')
-          .eq('user_id', userId)
-          .is('ended_at', null)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          
-        if (recoveryError) {
-          console.error('[Chat API] Session recovery error:', recoveryError)
-          return NextResponse.json({ error: 'Session not found and recovery failed' }, { status: 404 })
-        }
-        
-        if (activeSessions && activeSessions.length > 0) {
-          console.log('[Chat API] Found active session for recovery:', activeSessions[0].id)
-          // Use the recovered session
-          sessions = activeSessions
-        } else {
-          console.error('[Chat API] No active sessions found for user:', userId)
-          return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-        }
+        console.error('[Chat API] Session not found:', {
+          sessionId,
+          userId: authenticatedUser.id
+        })
+        return NextResponse.json({ error: 'Session not found' }, { status: 404 })
       }
 
       if (sessions.length > 1) {
@@ -131,16 +148,16 @@ export async function POST(request: NextRequest) {
 
       console.log('[Chat API] Session verification:', {
         sessionUserId: session?.user_id,
-        requestUserId: userId,
-        match: session?.user_id === userId
+        authenticatedUserId: authenticatedUser.id,
+        match: session?.user_id === authenticatedUser.id
       })
 
-      if (session.user_id !== userId) {
-        console.error('[Chat API] Session user mismatch:', {
+      if (session.user_id !== authenticatedUser.id) {
+        console.error('[Chat API] Session ownership mismatch:', {
           sessionUserId: session.user_id,
-          requestUserId: userId
+          authenticatedUserId: authenticatedUser.id
         })
-        return NextResponse.json({ error: 'Invalid session' }, { status: 403 })
+        return NextResponse.json({ error: 'Invalid session ownership' }, { status: 403 })
       }
     }
 
@@ -208,11 +225,16 @@ Your role is to:
       "I'm sorry, I didn't catch that. Could you please repeat?"
 
     console.log('[Chat API] OpenAI response received:', aiResponse.substring(0, 50) + '...')
+    console.log('[Chat API] Auth context summary:', {
+      isAnonymous,
+      hasAuthHeader: !!authHeader,
+      authenticatedUserId: authenticatedUser?.id,
+      sessionId,
+      willSaveToDb: !isAnonymous && sessionId !== 'anonymous'
+    })
 
     // Save both messages to database (only for authenticated users)
     if (!isAnonymous && sessionId !== 'anonymous') {
-      const supabase = await createClient()
-      
       console.log('[Chat API] Saving messages to database for session:', sessionId)
       
       // Insert user message
@@ -307,9 +329,18 @@ Your role is to:
     }
     
     // Return more detailed error in development
+    const errorDetails = {
+      message: error.message,
+      hasAuth: !!authHeader,
+      isAnonymous,
+      hasSession: !!sessionId
+    }
+    
     const errorMessage = process.env.NODE_ENV === 'development' 
       ? `Failed to process chat: ${error.message}`
       : 'Failed to process chat message'
+    
+    console.error('[Chat API] Error details:', errorDetails)
     
     return NextResponse.json({ error: errorMessage }, { status: 500 })
   }

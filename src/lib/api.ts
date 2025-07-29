@@ -1,6 +1,7 @@
 /**
- * API utility functions with CSRF protection
+ * API utility functions with CSRF protection and Supabase auth
  */
+import { supabase } from './supabase/client'
 
 function getCSRFToken(): string | null {
   // Get CSRF token from client-accessible cookie
@@ -14,10 +15,29 @@ function getCSRFToken(): string | null {
 
 interface FetchOptions extends RequestInit {
   skipCSRF?: boolean
+  skipAuth?: boolean
 }
 
 export async function apiFetch(url: string, options: FetchOptions = {}) {
-  const { skipCSRF = false, ...fetchOptions } = options
+  const { skipCSRF = false, skipAuth = false, ...fetchOptions } = options
+
+  // Add Supabase auth headers
+  if (!skipAuth) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        fetchOptions.headers = {
+          ...fetchOptions.headers,
+          'Authorization': `Bearer ${session.access_token}`,
+        }
+        console.log('[apiFetch] Added auth header for user:', session.user.id)
+      } else {
+        console.log('[apiFetch] No auth session available')
+      }
+    } catch (error) {
+      console.error('[apiFetch] Error getting auth session:', error)
+    }
+  }
 
   // Add CSRF token to headers for state-changing requests
   if (
