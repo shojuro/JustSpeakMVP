@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -124,43 +124,6 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   // Handle transcript updates
   const lastTranscriptRef = useRef<string>('')
   const sessionRetryRef = useRef<boolean>(false)
-
-  useEffect(() => {
-    console.log(
-      '[ChatInterface] Transcript update - transcript:',
-      transcript,
-      'isRecording:',
-      isRecording,
-      'duration:',
-      duration
-    )
-    if (transcript && transcript.trim().length > 0 && !isRecording) {
-      // Prevent duplicate messages
-      if (lastTranscriptRef.current === transcript) {
-        console.log('[ChatInterface] Duplicate transcript, skipping:', transcript)
-        return
-      }
-      lastTranscriptRef.current = transcript
-
-      // Save the duration value before it gets reset
-      recordingDurationRef.current = duration
-      console.log('[ChatInterface] Saved recording duration:', recordingDurationRef.current)
-
-      console.log('[ChatInterface] Processing transcript:', transcript)
-      // Add validation to prevent spam messages
-      const lowerTranscript = transcript.toLowerCase()
-      if (
-        lowerTranscript.includes('engvid.com') ||
-        lowerTranscript.includes('learn english for free') ||
-        lowerTranscript.includes('www.') ||
-        lowerTranscript.includes('.com')
-      ) {
-        console.error('[ChatInterface] Suspicious transcript blocked:', transcript)
-        return
-      }
-      handleSendMessage(transcript)
-    }
-  }, [transcript, isRecording, duration])
 
   const createOrGetSession = async (forceNew = false) => {
     if (!user) return null
@@ -319,7 +282,10 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     }
   }
 
-  const handleSendMessage = async (text: string, retrySession?: Session) => {
+  // Move transcript handling effect after handleSendMessage declaration
+  // This will be added later after handleSendMessage is defined
+
+  const handleSendMessage = useCallback(async (text: string, retrySession?: Session) => {
     if (!text.trim() || isLoading) return
 
     // Use retry session if provided, otherwise use current session from ref
@@ -412,6 +378,9 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     const newSpeakingTime = totalSpeakingTime + messageDuration
     setTotalSpeakingTime(newSpeakingTime)
     console.log('[ChatInterface] Updated total speaking time:', newSpeakingTime, 'added:', messageDuration)
+    
+    // Reset recording duration for next message
+    recordingDurationRef.current = 0
 
     try {
       // Call OpenAI via API route
@@ -532,7 +501,50 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [isLoading, isAnonymous, user, sessionRef, totalSpeakingTime, voiceEnabled, speak, supabase, apiFetch, setMessages, setTotalSpeakingTime, createOrGetSession])
+
+  // Handle transcript updates - must be after handleSendMessage declaration
+  useEffect(() => {
+    console.log(
+      '[ChatInterface] Transcript update - transcript:',
+      transcript,
+      'isRecording:',
+      isRecording,
+      'duration:',
+      duration
+    )
+    if (transcript && transcript.trim().length > 0 && !isRecording) {
+      // Prevent duplicate messages
+      if (lastTranscriptRef.current === transcript) {
+        console.log('[ChatInterface] Duplicate transcript, skipping:', transcript)
+        return
+      }
+      lastTranscriptRef.current = transcript
+
+      // Save the duration value before it gets reset
+      recordingDurationRef.current = duration
+      console.log('[ChatInterface] Saved recording duration:', recordingDurationRef.current)
+
+      console.log('[ChatInterface] Processing transcript:', transcript)
+      // Add validation to prevent spam messages
+      const lowerTranscript = transcript.toLowerCase()
+      if (
+        lowerTranscript.includes('engvid.com') ||
+        lowerTranscript.includes('learn english for free') ||
+        lowerTranscript.includes('www.') ||
+        lowerTranscript.includes('.com')
+      ) {
+        console.error('[ChatInterface] Suspicious transcript blocked:', transcript)
+        return
+      }
+      handleSendMessage(transcript)
+      
+      // Reset last transcript after processing to allow the same message again later
+      setTimeout(() => {
+        lastTranscriptRef.current = ''
+      }, 1000)
+    }
+  }, [transcript, isRecording, duration, handleSendMessage])
 
   const handleEndSession = async () => {
     if (isAnonymous) {

@@ -17,6 +17,12 @@ export function useSpeechRecording() {
 
   const startRecording = useCallback(async () => {
     console.log('[Recording] Start requested, current state:', isRecording)
+    
+    // Don't start if already recording
+    if (isRecording) {
+      console.log('[Recording] Already recording, ignoring start request')
+      return
+    }
 
     // Reset state
     setError(null)
