@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
 import OpenAI from 'openai'
 import { sanitizeText } from '@/lib/sanitization'
+import type { Database } from '@/types/database'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -26,11 +28,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get authenticated user from request
-    // The server-side createClient already handles auth from cookies
-    const supabase = await createClient()
+    // Create Supabase client with proper cookie handling
+    const cookieStore = await cookies()
+    
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+        },
+      }
+    )
+    
     authHeader = request.headers.get('authorization')
     console.log('[Chat API] Auth header present:', !!authHeader)
+    
+    // Log all cookies for debugging
+    const allCookies = cookieStore.getAll()
+    const authCookies = allCookies.filter(c => c.name.includes('sb-') && c.name.includes('auth'))
+    console.log('[Chat API] Auth cookies:', authCookies.map(c => ({ name: c.name, hasValue: !!c.value })))
     
     // Get user from the server-side client (uses cookies)
     const { data: { user: authenticatedUser }, error: authError } = await supabase.auth.getUser()
@@ -182,7 +201,6 @@ export async function POST(request: NextRequest) {
     // Get conversation history for context (last 20 messages) - only for authenticated users
     let history = null
     if (!isAnonymous && sessionId !== 'anonymous') {
-      const supabase = await createClient()
       const { data } = await supabase
         .from('messages')
         .select('speaker, content')
@@ -210,7 +228,7 @@ Your role is to:
 
     // Add conversation history (reversed to get chronological order)
     if (history) {
-      history.reverse().forEach((msg) => {
+      history.reverse().forEach((msg: any) => {
         messages.push({
           role: msg.speaker === 'USER' ? 'user' : 'assistant',
           content: msg.content,

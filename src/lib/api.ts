@@ -65,5 +65,8 @@ export async function apiFetch(url: string, options: FetchOptions = {}) {
     'Cache-Control': 'no-cache',
   }
 
+  // Ensure cookies are sent with the request
+  fetchOptions.credentials = 'include'
+
   return fetch(url, fetchOptions)
 }
