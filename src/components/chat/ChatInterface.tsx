@@ -90,50 +90,55 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     }
   }, [transcript, isRecording])
 
-  const createOrGetSession = async () => {
+  const createOrGetSession = async (forceNew = false) => {
     if (!user) return
 
-    console.log('[ChatInterface] Creating or getting session for user:', user.id)
+    console.log('[ChatInterface] Creating or getting session for user:', user.id, 'Force new:', forceNew)
 
     try {
-      // Check for existing active session
-      const { data: existingSessions, error: fetchError } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .is('ended_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-
-      if (fetchError) {
-        console.error('[ChatInterface] Error fetching sessions:', fetchError)
-        throw fetchError
-      }
-
-      if (existingSessions && existingSessions.length > 0) {
-        // Use existing session - take the most recent one
-        const mostRecentSession = existingSessions[0]
-        console.log('[ChatInterface] Found', existingSessions.length, 'active sessions')
-        console.log('[ChatInterface] Using most recent session:', mostRecentSession.id)
-        setSession(mostRecentSession)
-        setTotalSpeakingTime(mostRecentSession.total_speaking_time)
-        await loadMessages(mostRecentSession.id)
-      } else {
-        // Create new session
-        console.log('[ChatInterface] Creating new session')
-        const { data: newSession, error: createError } = await supabase
+      if (!forceNew) {
+        // Check for existing active session
+        const { data: existingSessions, error: fetchError } = await supabase
           .from('sessions')
-          .insert({ user_id: user.id })
-          .select()
-          .single()
+          .select('*')
+          .eq('user_id', user.id)
+          .is('ended_at', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
 
-        if (createError) {
-          console.error('[ChatInterface] Error creating session:', createError)
-          throw createError
+        if (fetchError) {
+          console.error('[ChatInterface] Error fetching sessions:', fetchError)
+          throw fetchError
         }
-        console.log('[ChatInterface] New session created:', newSession.id)
-        setSession(newSession)
+
+        if (existingSessions && existingSessions.length > 0) {
+          // Use existing session - take the most recent one
+          const mostRecentSession = existingSessions[0]
+          console.log('[ChatInterface] Found', existingSessions.length, 'active sessions')
+          console.log('[ChatInterface] Using most recent session:', mostRecentSession.id)
+          setSession(mostRecentSession)
+          setTotalSpeakingTime(mostRecentSession.total_speaking_time)
+          await loadMessages(mostRecentSession.id)
+          return
+        }
       }
+
+      // Create new session
+      console.log('[ChatInterface] Creating new session')
+      const { data: newSession, error: createError } = await supabase
+        .from('sessions')
+        .insert({ user_id: user.id })
+        .select()
+        .single()
+
+      if (createError) {
+        console.error('[ChatInterface] Error creating session:', createError)
+        throw createError
+      }
+      console.log('[ChatInterface] New session created:', newSession.id)
+      setSession(newSession)
+      setMessages([])
+      setTotalSpeakingTime(0)
     } catch (error) {
       console.error('[ChatInterface] Error managing session:', error)
     }
@@ -206,22 +211,22 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         
         // If session not found and we haven't retried yet, recreate session
         if (response.status === 404 && errorData.error === 'Session not found' && !sessionRetryRef.current && !isAnonymous) {
-          console.log('[ChatInterface] Session not found, recreating...')
+          console.log('[ChatInterface] Session not found, creating NEW session...')
           sessionRetryRef.current = true
           
           // Remove the failed message
           setMessages((prev) => prev.slice(0, -1))
           
-          // Reset session and recreate
+          // Force create a NEW session (don't reuse existing)
           setSession(null)
-          await createOrGetSession()
+          await createOrGetSession(true) // Force new session
           
-          // Retry sending the message after a short delay
+          // Reset retry flag after delay
           setTimeout(() => {
             sessionRetryRef.current = false
-            handleSendMessage(text)
-          }, 500)
+          }, 2000)
           
+          // Don't retry automatically - let user try again manually
           return
         }
         
@@ -352,14 +357,16 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
                 </Link>
                 <button
                   onClick={async () => {
+                    console.log('[ChatInterface] Manual refresh requested')
                     setSession(null)
                     setMessages([])
-                    await createOrGetSession()
+                    setTotalSpeakingTime(0)
+                    await createOrGetSession(true) // Force new session
                   }}
                   className="text-sm text-text-secondary hover:text-text-primary"
-                  title="Refresh session"
+                  title="Create new session"
                 >
-                  Refresh
+                  New Session
                 </button>
                 <button
                   onClick={handleEndSession}
