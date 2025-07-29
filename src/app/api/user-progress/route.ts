@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .eq('user_id', user.id)
       .eq('date', today)
-      .single()
+      .maybeSingle()
 
     if (existingProgress) {
       // Update existing record

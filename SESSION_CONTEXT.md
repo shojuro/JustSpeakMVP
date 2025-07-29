@@ -1,66 +1,116 @@
 # Session Context - Just Speak MVP
 
-## Current Status: Bug Fixes Implemented ✓
+## Current Status: Critical Issues Found in Testing ⚠️
 
-### Issues Fixed
+### Latest Test Results (2025-07-29)
 
-1. **Dashboard Time Tracking** ✓
-   - Problem: Duration value was getting reset when recording stopped
-   - Solution: Added `recordingDurationRef` to preserve duration value
-   - Implementation:
-     - Added `recordingDurationRef = useRef<number>(0)` in ChatInterface
-     - Save duration when transcript is processed: `recordingDurationRef.current = duration`
-     - Use saved duration for messages and API calls
-   - Result: Dashboard now accurately tracks speaking time
+#### What Works ✓
+- Recording functionality (100+ seconds recorded successfully)
+- Transcript generation via OpenAI Whisper
+- AI conversation responses
+- Message looping issue fixed
+- Basic chat functionality
 
-2. **Feedback Page Session Refresh** ✓
-   - Problem: Sessions weren't refreshing when navigating back from chat
-   - Solution: Added visibility and focus event listeners
-   - Implementation:
-     - Refresh sessions when page becomes visible
-     - Refresh sessions when window gains focus
-     - Preserve selected session if it still exists
-   - Result: Feedback page always shows current sessions
+#### What's Broken ✗
+1. **Dashboard Time Tracking Not Working**
+   - Speaking time not saved to database
+   - user_progress API returning 500 errors repeatedly
+   - Dashboard shows 0:00 despite successful recordings
 
-### Authentication Status (Previously Fixed)
-- Cookie-based authentication: Working ✓
-- Supabase SSR: Configured ✓
-- API routes: Authenticated ✓
-- Session state management: Fixed ✓
+2. **Feedback Page Issues**
+   - No new transcripts appearing
+   - Old transcripts from previous attempts remain
+   - Sessions are created but corrections not being saved
 
-### Features Completed
-1. Dashboard functionality tracking talk time ✓
-2. Feedback document with conversations and corrections ✓
-3. ESL Error Hierarchy implementation (levels 1-4 prioritized) ✓
-4. Natural conversation flow (no inline corrections) ✓
+3. **API Errors in Console**
+   - `api/user-progress: 500` - Failed to update progress (multiple times)
+   - `user_progress?select=*...&date=eq.2025-07-29: 406` - Query expecting single result
+   - `manifest.json: 401` - PWA manifest unauthorized on Vercel
 
-### Important Design Decisions
-- Users NEVER see errors/corrections during chat
-- Corrections only appear in separate feedback document
-- AI responds naturally to what it understands
-- Focus on ESL hierarchy levels 1-4 (Word Order, Word Form, Verb Tense, Prepositions)
+### Root Causes Identified
 
-### Files Modified in This Session
-1. `/src/components/chat/ChatInterface.tsx`:
-   - Added `recordingDurationRef` to preserve recording duration
-   - Updated transcript handling to save duration before reset
-   - Updated message sending to use saved duration
+1. **Dashboard Query Issue**
+   ```typescript
+   // Current code uses .single() which fails when no record exists
+   .eq('date', today)
+   .single()  // This causes 406 when no record exists
+   
+   // Should be:
+   .maybeSingle()  // Returns null if no record
+   ```
 
-2. `/src/app/feedback/page.tsx`:
-   - Added visibility change event listener
-   - Added window focus event listener
-   - Updated session loading to preserve selection
+2. **User Progress API Authentication**
+   - API is using server-side auth but may have context issues
+   - Date handling might be inconsistent between client and server
+   - Need to verify authentication flow matches other working APIs
 
-### Next Steps
-1. Commit and push the bug fixes
-2. Test on Vercel deployment
-3. Consider implementing real speech-to-text (currently placeholder)
-4. Future: PDF export option for feedback documents
+3. **Database Schema Issue**
+   - user_progress table expects unique (user_id, date) constraint
+   - Insert/update logic may be failing due to constraint violations
 
-### Database Schema
+### Console Logs from Test
+```
+[Recording] Total chunks collected: 1042
+[Recording] Blob size: 1620192
+[Transcription] Starting, blob size: 1620192
+[ChatInterface] Saved recording duration: 100
+[ChatInterface] Processing transcript: [full transcript captured]
+[ChatInterface] No session available for authenticated user
+[ChatInterface] Creating new session...
+[ChatInterface] Updated total speaking time: 100 added: 100
+[ChatInterface] Updating user progress, duration: 100
+api/user-progress:1 Failed to load resource: status 500
+[ChatInterface] Failed to update user progress
+```
+
+### Issues Fixed Previously
+1. ✓ Authentication (cookie-based SSR)
+2. ✓ Message looping (transcript clearing)
+3. ✓ Session management
+4. ✓ Feedback page refresh
+
+### Action Plan for Next Session
+
+1. **Fix Dashboard Queries** (dashboard/page.tsx):
+   ```typescript
+   // Change from:
+   .single()
+   // To:
+   .maybeSingle()
+   ```
+
+2. **Fix User Progress API** (api/user-progress/route.ts):
+   - Update authentication to match working patterns
+   - Add detailed error logging
+   - Fix date handling consistency
+   - Handle insert/update conflicts properly
+
+3. **Debug Progress Tracking**:
+   - Add console logs to trace exact failure point
+   - Verify database constraints
+   - Check date format consistency
+
+4. **Fix PWA Manifest**:
+   - Check public directory setup
+   - Verify manifest.json accessibility
+   - Update next.config.js if needed
+
+### Database Schema Reference
 - `user_progress`: Tracks daily speaking time
+  - Unique constraint on (user_id, date)
+  - Fields: total_speaking_time, total_messages, error_counts
 - `sessions`: Speaking practice sessions
 - `messages`: Conversation history
 - `corrections`: Error analysis (not shown inline)
 
-All features use Row Level Security (RLS) for data isolation.
+### Files to Modify Next
+1. `/src/app/dashboard/page.tsx` - Fix queries
+2. `/src/app/api/user-progress/route.ts` - Fix auth and error handling
+3. `/src/components/chat/ChatInterface.tsx` - Add more logging if needed
+4. `/public/manifest.json` - Verify accessibility
+
+### Important Notes
+- All basic functionality works except progress tracking
+- The issue is specifically with saving/retrieving user progress data
+- Authentication is working (user can record and chat)
+- This is likely a simple fix in the API endpoint and dashboard queries
