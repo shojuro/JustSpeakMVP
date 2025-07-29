@@ -208,8 +208,21 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       setMessages([])
       setTotalSpeakingTime(0)
       return newSession
-    } catch (error) {
-      console.error('[ChatInterface] Error managing session:', error)
+    } catch (error: any) {
+      console.error('[ChatInterface] Error managing session:', {
+        error,
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+        userId: user?.id,
+        errorType: error?.constructor?.name
+      })
+      
+      // Show user-friendly error message
+      const errorMessage = error?.message || 'Failed to create session'
+      alert(`Session Error: ${errorMessage}. Please refresh the page and try again.`)
+      
       return null
     }
   }
@@ -272,6 +285,15 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       }
     }
 
+    // Log the current session state before sending
+    console.log('[ChatInterface] Current session state:', {
+      session,
+      sessionId: session?.id,
+      sessionUserId: session?.user_id,
+      currentUserId: user?.id,
+      isAnonymous
+    })
+    
     console.log('[ChatInterface] Sending message:', {
       textLength: text.length,
       sessionId: session?.id || 'anonymous',
@@ -300,14 +322,19 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
 
     try {
       // Call OpenAI via API route
+      // For authenticated users without a session, don't send 'anonymous'
+      const messagePayload = {
+        message: text,
+        sessionId: isAnonymous ? 'anonymous' : (session?.id || null),
+        userId: isAnonymous ? 'anonymous' : (user?.id || null),
+        isAnonymous,
+      }
+      
+      console.log('[ChatInterface] Sending chat request with payload:', messagePayload)
+      
       const response = await apiFetch('/api/chat', {
         method: 'POST',
-        body: JSON.stringify({
-          message: text,
-          sessionId: session?.id || 'anonymous',
-          userId: user?.id || 'anonymous',
-          isAnonymous,
-        }),
+        body: JSON.stringify(messagePayload),
       })
 
       if (!response.ok) {

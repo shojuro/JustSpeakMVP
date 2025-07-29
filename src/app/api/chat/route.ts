@@ -55,6 +55,16 @@ export async function POST(request: NextRequest) {
     if (!isAnonymous) {
       if (!sessionId) {
         console.error('[Chat API] Missing sessionId for authenticated user')
+        console.log('[Chat API] User ID provided:', userId)
+        
+        // If no session ID but we have a user ID, this is an error
+        if (userId && userId !== 'anonymous') {
+          return NextResponse.json(
+            { error: 'Session needs to be created first. Please refresh the page.' },
+            { status: 400 }
+          )
+        }
+        
         return NextResponse.json(
           { error: 'SessionId is required for authenticated users' },
           { status: 400 }
