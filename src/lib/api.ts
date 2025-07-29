@@ -21,21 +21,18 @@ interface FetchOptions extends RequestInit {
 export async function apiFetch(url: string, options: FetchOptions = {}) {
   const { skipCSRF = false, skipAuth = false, ...fetchOptions } = options
 
-  // Add Supabase auth headers
+  // Note: Authentication is handled via cookies by Supabase SSR
+  // The server-side createClient will automatically use auth cookies
   if (!skipAuth) {
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) {
-        fetchOptions.headers = {
-          ...fetchOptions.headers,
-          'Authorization': `Bearer ${session.access_token}`,
-        }
-        console.log('[apiFetch] Added auth header for user:', session.user.id)
+      if (session) {
+        console.log('[apiFetch] User authenticated:', session.user.id)
       } else {
         console.log('[apiFetch] No auth session available')
       }
     } catch (error) {
-      console.error('[apiFetch] Error getting auth session:', error)
+      console.error('[apiFetch] Error checking auth session:', error)
     }
   }
 

@@ -27,21 +27,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Get authenticated user from request
+    // The server-side createClient already handles auth from cookies
     const supabase = await createClient()
     authHeader = request.headers.get('authorization')
     console.log('[Chat API] Auth header present:', !!authHeader)
     
-    let authenticatedUser = null
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-      
-      if (authError) {
-        console.error('[Chat API] Auth verification error:', authError)
-      } else if (user) {
-        authenticatedUser = user
-        console.log('[Chat API] Authenticated user:', user.id, user.email)
-      }
+    // Get user from the server-side client (uses cookies)
+    const { data: { user: authenticatedUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError) {
+      console.error('[Chat API] Auth error:', authError)
+    } else if (authenticatedUser) {
+      console.log('[Chat API] Authenticated user from cookies:', authenticatedUser.id, authenticatedUser.email)
+    } else {
+      console.log('[Chat API] No authenticated user found')
     }
 
     let body
@@ -110,19 +109,25 @@ export async function POST(request: NextRequest) {
       // Verify user owns the session
       console.log('[Chat API] Verifying session ownership:', {
         sessionId,
-        authenticatedUserId: authenticatedUser.id
+        authenticatedUserId: authenticatedUser.id,
+        sessionIdLength: sessionId.length
       })
       
+      // Query with explicit user context
       let { data: sessions, error: sessionError } = await supabase
         .from('sessions')
-        .select('user_id')
+        .select('id, user_id, created_at')
         .eq('id', sessionId)
+        .eq('user_id', authenticatedUser.id)
 
       console.log('[Chat API] Session query result:', {
         sessionError: sessionError?.message,
         sessionCount: sessions?.length || 0,
-        sessionId,
-        userId
+        sessionData: sessions?.[0],
+        queryParams: {
+          sessionId,
+          userId: authenticatedUser.id
+        }
       })
 
       // Handle the case where .single() would fail
@@ -136,6 +141,19 @@ export async function POST(request: NextRequest) {
           sessionId,
           userId: authenticatedUser.id
         })
+        
+        // Debug: Try to query without user filter to see if session exists
+        const { data: allSessions, error: debugError } = await supabase
+          .from('sessions')
+          .select('id, user_id')
+          .eq('id', sessionId)
+          
+        console.error('[Chat API] Debug - session exists check:', {
+          found: allSessions?.length || 0,
+          sessionData: allSessions?.[0],
+          error: debugError?.message
+        })
+        
         return NextResponse.json({ error: 'Session not found' }, { status: 404 })
       }
 
