@@ -24,6 +24,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   const [totalSpeakingTime, setTotalSpeakingTime] = useState(0)
   const [voiceEnabled, setVoiceEnabled] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const sessionRef = useRef<Session | null>(null)
 
   const {
     isRecording,
@@ -48,6 +49,19 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     scrollToBottom()
   }, [messages])
 
+  // Helper function to update session in both state and ref
+  const updateSession = (newSession: Session | null) => {
+    setSession(newSession)
+    sessionRef.current = newSession
+    
+    // Persist session ID to sessionStorage
+    if (newSession && !isAnonymous) {
+      sessionStorage.setItem(`session-${user?.id}`, newSession.id)
+    } else if (!newSession && user) {
+      sessionStorage.removeItem(`session-${user.id}`)
+    }
+  }
+
   // Create or get session on mount
   useEffect(() => {
     if (user && !isAnonymous) {
@@ -66,13 +80,43 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         return
       }
       
-      // Mark that we're creating a session
-      sessionStorage.setItem(creatingKey, 'true')
-      
-      createOrGetSession().finally(() => {
-        // Clear the flag after creation attempt
-        sessionStorage.removeItem(creatingKey)
-      })
+      // Check if we have a session ID in storage
+      const storedSessionId = sessionStorage.getItem(`session-${user.id}`)
+      if (storedSessionId) {
+        console.log('[ChatInterface] Found stored session ID, verifying:', storedSessionId)
+        // Verify the session still exists
+        supabase
+          .from('sessions')
+          .select('*')
+          .eq('id', storedSessionId)
+          .eq('user_id', user.id)
+          .is('ended_at', null)
+          .single()
+          .then(({ data, error }) => {
+            if (data && !error) {
+              console.log('[ChatInterface] Restored session from storage:', data.id)
+              updateSession(data)
+              setTotalSpeakingTime(data.total_speaking_time)
+              loadMessages(data.id)
+            } else {
+              console.log('[ChatInterface] Stored session not found, creating new')
+              sessionStorage.removeItem(`session-${user.id}`)
+              // Mark that we're creating a session
+              sessionStorage.setItem(creatingKey, 'true')
+              createOrGetSession().finally(() => {
+                sessionStorage.removeItem(creatingKey)
+              })
+            }
+          })
+      } else {
+        // Mark that we're creating a session
+        sessionStorage.setItem(creatingKey, 'true')
+        
+        createOrGetSession().finally(() => {
+          // Clear the flag after creation attempt
+          sessionStorage.removeItem(creatingKey)
+        })
+      }
     }
   }, [user, isAnonymous, session])
 
@@ -137,10 +181,29 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
           const mostRecentSession = existingSessions[0]
           console.log('[ChatInterface] Found', existingSessions.length, 'active sessions')
           console.log('[ChatInterface] Using most recent session:', mostRecentSession.id)
-          setSession(mostRecentSession)
+          updateSession(mostRecentSession)
           setTotalSpeakingTime(mostRecentSession.total_speaking_time)
           await loadMessages(mostRecentSession.id)
           return mostRecentSession
+        }
+      }
+
+      // Before creating new session, end any existing orphaned sessions
+      if (!forceNew) {
+        try {
+          console.log('[ChatInterface] Cleaning up orphaned sessions')
+          const { data: orphanedSessions, error: cleanupError } = await supabase
+            .from('sessions')
+            .update({ ended_at: new Date().toISOString() })
+            .eq('user_id', user.id)
+            .is('ended_at', null)
+            .select()
+          
+          if (!cleanupError && orphanedSessions && orphanedSessions.length > 0) {
+            console.log('[ChatInterface] Ended', orphanedSessions.length, 'orphaned sessions')
+          }
+        } catch (error) {
+          console.error('[ChatInterface] Error cleaning up sessions:', error)
         }
       }
 
@@ -204,7 +267,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       
       console.log('[ChatInterface] Session verified in database:', verifySession.id)
       
-      setSession(newSession)
+      updateSession(newSession)
       setMessages([])
       setTotalSpeakingTime(0)
       return newSession
@@ -244,9 +307,13 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     }
   }
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, retrySession?: Session) => {
     if (!text.trim() || isLoading) return
-    if (!isAnonymous && !session) {
+    
+    // Use retry session if provided, otherwise use current session from ref
+    const currentSession = retrySession || sessionRef.current
+    
+    if (!isAnonymous && !currentSession) {
       console.error('[ChatInterface] No session available for authenticated user')
       // Try to create a session if we don't have one
       const newSession = await createOrGetSession()
@@ -254,32 +321,36 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         console.error('[ChatInterface] Failed to create session for message')
         return
       }
+      // Use the newly created session
+      return handleSendMessage(text, newSession)
     }
 
     // For authenticated users, verify session exists in database before sending
-    if (!isAnonymous && session) {
-      console.log('[ChatInterface] Verifying session before sending message:', session.id)
+    if (!isAnonymous && currentSession) {
+      console.log('[ChatInterface] Verifying session before sending message:', currentSession.id)
       const { data: sessionExists, error: checkError } = await supabase
         .from('sessions')
         .select('id')
-        .eq('id', session.id)
+        .eq('id', currentSession.id)
         .single()
         
       if (checkError || !sessionExists) {
         console.error('[ChatInterface] Session verification failed before sending:', {
-          sessionId: session.id,
+          sessionId: currentSession.id,
           error: checkError,
           exists: !!sessionExists
         })
         
         // Session doesn't exist, create a new one
-        setSession(null)
+        updateSession(null)
         const newSession = await createOrGetSession(true)
         if (!newSession) {
           console.error('[ChatInterface] Failed to create new session after verification failure')
           return
         }
         console.log('[ChatInterface] Created new session after verification failure:', newSession.id)
+        // Use the new session for this message
+        return handleSendMessage(text, newSession)
       } else {
         console.log('[ChatInterface] Session verified successfully:', sessionExists.id)
       }
@@ -287,26 +358,26 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
 
     // Log the current session state before sending
     console.log('[ChatInterface] Current session state:', {
-      session,
-      sessionId: session?.id,
-      sessionUserId: session?.user_id,
+      session: currentSession,
+      sessionId: currentSession?.id,
+      sessionUserId: currentSession?.user_id,
       currentUserId: user?.id,
       isAnonymous
     })
     
     console.log('[ChatInterface] Sending message:', {
       textLength: text.length,
-      sessionId: session?.id || 'anonymous',
+      sessionId: currentSession?.id || 'anonymous',
       userId: user?.id || 'anonymous',
       isAnonymous,
-      hasSession: !!session,
-      sessionDetails: session ? { id: session.id, userId: session.user_id } : null
+      hasSession: !!currentSession,
+      sessionDetails: currentSession ? { id: currentSession.id, userId: currentSession.user_id } : null
     })
 
     setIsLoading(true)
     const userMessage: Message = {
       id: crypto.randomUUID(),
-      session_id: session?.id || 'anonymous',
+      session_id: currentSession?.id || 'anonymous',
       speaker: 'USER',
       content: text,
       duration: duration,
@@ -325,7 +396,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       // For authenticated users without a session, don't send 'anonymous'
       const messagePayload = {
         message: text,
-        sessionId: isAnonymous ? 'anonymous' : (session?.id || null),
+        sessionId: isAnonymous ? 'anonymous' : (currentSession?.id || null),
         userId: isAnonymous ? 'anonymous' : (user?.id || null),
         isAnonymous,
       }
@@ -349,7 +420,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
           setMessages((prev) => prev.slice(0, -1))
           
           // Force create a NEW session (don't reuse existing)
-          setSession(null)
+          updateSession(null)
           const newSession = await createOrGetSession(true) // Force new session
           
           // Reset retry flag after delay
@@ -361,7 +432,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
           if (newSession) {
             console.log('[ChatInterface] Retrying message with new session:', newSession.id)
             // Retry the message with the new session
-            handleSendMessage(text)
+            handleSendMessage(text, newSession)
           }
           return
         }
@@ -374,7 +445,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       // Add AI message
       const aiMessage: Message = {
         id: crypto.randomUUID(),
-        session_id: session?.id || 'anonymous',
+        session_id: currentSession?.id || 'anonymous',
         speaker: 'AI',
         content: data.message,
         duration: null,
@@ -392,11 +463,11 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       }
 
       // Update session speaking time in database (only for authenticated users)
-      if (session && !isAnonymous) {
+      if (currentSession && !isAnonymous) {
         await supabase
           .from('sessions')
           .update({ total_speaking_time: newSpeakingTime })
-          .eq('id', session.id)
+          .eq('id', currentSession.id)
       }
     } catch (error) {
       console.error('Error sending message:', error)
@@ -405,7 +476,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         ...prev,
         {
           id: crypto.randomUUID(),
-          session_id: session?.id || 'anonymous',
+          session_id: currentSession?.id || 'anonymous',
           speaker: 'AI',
           content: "I'm sorry, I couldn't process that. Please try again.",
           duration: null,
@@ -434,7 +505,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         .eq('id', session.id)
 
       // Reset state
-      setSession(null)
+      updateSession(null)
       setMessages([])
       setTotalSpeakingTime(0)
 
@@ -494,7 +565,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
                 <button
                   onClick={async () => {
                     console.log('[ChatInterface] Manual refresh requested')
-                    setSession(null)
+                    updateSession(null)
                     setMessages([])
                     setTotalSpeakingTime(0)
                     await createOrGetSession(true) // Force new session
