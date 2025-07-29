@@ -157,6 +157,12 @@ export default function DashboardPage() {
               <div className="text-sm text-text-secondary">Areas to Improve</div>
             </div>
           </div>
+          {/* View Feedback Button */}
+          <div className="mt-4 text-center">
+            <Link href="/feedback" className="btn-primary inline-block">
+              View Conversation Feedback
+            </Link>
+          </div>
         </div>
 
         {/* Week Summary */}
