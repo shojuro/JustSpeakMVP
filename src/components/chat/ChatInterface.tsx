@@ -644,7 +644,7 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
 
         // Check if chat succeeded
         const chatResult = await chatPromise
-        if (!chatResult.success && chatResult.error) {
+        if (chatResult && !chatResult.success && chatResult.error) {
           throw chatResult.error
         }
       } catch (error) {
