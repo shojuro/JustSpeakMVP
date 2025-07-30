@@ -118,6 +118,69 @@ function DashboardContent() {
         }
       }
 
+      // Load today's actual speaking time from sessions
+      console.log(`[Dashboard] Loading today's sessions for accurate speaking time...`)
+      const todayStart = new Date(today + 'T00:00:00.000Z')
+      const todayEnd = new Date(today + 'T23:59:59.999Z')
+      
+      const { data: todaySessions, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('id, total_speaking_time')
+        .eq('user_id', user.id)
+        .gte('created_at', todayStart.toISOString())
+        .lte('created_at', todayEnd.toISOString())
+
+      if (sessionsError) {
+        console.error('[Dashboard] Error loading today\'s sessions:', sessionsError)
+        newDebugInfo.errors.push(`Today's sessions: ${sessionsError.message}`)
+      } else {
+        console.log('[Dashboard] Today\'s sessions:', todaySessions)
+        // Calculate total speaking time from sessions
+        const totalSpeakingTime = todaySessions?.reduce((sum, session) => sum + (session.total_speaking_time || 0), 0) || 0
+        console.log('[Dashboard] Calculated total speaking time:', totalSpeakingTime)
+        
+        // Load today's message count
+        let messageCount = 0
+        if (todaySessions && todaySessions.length > 0) {
+          const sessionIds = todaySessions.map(s => s.id)
+          const { count, error: messagesError } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('speaker', 'USER')
+            .in('session_id', sessionIds)
+
+          if (messagesError) {
+            console.error('[Dashboard] Error loading message count:', messagesError)
+            newDebugInfo.errors.push(`Message count: ${messagesError.message}`)
+          } else {
+            messageCount = count || 0
+          }
+        }
+        console.log('[Dashboard] Today\'s message count:', messageCount)
+
+        // Update or create today's progress with accurate data
+        if (todayData) {
+          setTodayProgress({
+            ...todayData,
+            total_speaking_time: totalSpeakingTime,
+            total_messages: messageCount,
+          })
+        } else {
+          // Create a temporary progress object for display
+          setTodayProgress({
+            id: 'temp',
+            user_id: user.id,
+            date: today,
+            total_speaking_time: totalSpeakingTime,
+            total_messages: messageCount,
+            error_counts: {},
+            improvement_areas: [],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as any)
+        }
+      }
+
       // Load week's progress
       const { data: weekData } = await supabase
         .from('user_progress')
