@@ -288,313 +288,387 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
   // Move transcript handling effect after handleSendMessage declaration
   // This will be added later after handleSendMessage is defined
 
-  const handleSendMessage = useCallback(async (text: string, retrySession?: Session) => {
-    if (!text.trim() || isLoading) return
+  const handleSendMessage = useCallback(
+    async (text: string, retrySession?: Session) => {
+      if (!text.trim() || isLoading) return
 
-    // Use retry session if provided, otherwise use current session from ref
-    const currentSession = retrySession || sessionRef.current
+      // Use retry session if provided, otherwise use current session from ref
+      const currentSession = retrySession || sessionRef.current
 
-    if (!isAnonymous && !currentSession) {
-      console.error('[ChatInterface] No session available for authenticated user')
-      // Try to create a session if we don't have one
-      const newSession = await createOrGetSession()
-      if (!newSession) {
-        console.error('[ChatInterface] Failed to create session for message')
-        return
-      }
-      // Use the newly created session
-      return handleSendMessage(text, newSession)
-    }
-
-    // For authenticated users, verify session exists in database before sending
-    if (!isAnonymous && currentSession) {
-      console.log('[ChatInterface] Verifying session before sending message:', currentSession.id)
-      const { data: sessionExists, error: checkError } = await supabase
-        .from('sessions')
-        .select('id')
-        .eq('id', currentSession.id)
-        .single()
-
-      if (checkError || !sessionExists) {
-        console.error('[ChatInterface] Session verification failed before sending:', {
-          sessionId: currentSession.id,
-          error: checkError,
-          exists: !!sessionExists,
-        })
-
-        // Session doesn't exist, create a new one
-        updateSession(null)
-        const newSession = await createOrGetSession(true)
+      if (!isAnonymous && !currentSession) {
+        console.error('[ChatInterface] No session available for authenticated user')
+        // Try to create a session if we don't have one
+        const newSession = await createOrGetSession()
         if (!newSession) {
-          console.error('[ChatInterface] Failed to create new session after verification failure')
+          console.error('[ChatInterface] Failed to create session for message')
           return
         }
-        console.log(
-          '[ChatInterface] Created new session after verification failure:',
-          newSession.id
-        )
-        // Use the new session for this message
+        // Use the newly created session
         return handleSendMessage(text, newSession)
-      } else {
-        console.log('[ChatInterface] Session verified successfully:', sessionExists.id)
       }
-    }
 
-    // Log the current session state before sending
-    console.log('[ChatInterface] Current session state:', {
-      session: currentSession,
-      sessionId: currentSession?.id,
-      sessionUserId: currentSession?.user_id,
-      currentUserId: user?.id,
-      isAnonymous,
-    })
-
-    console.log('[ChatInterface] Sending message:', {
-      textLength: text.length,
-      sessionId: currentSession?.id || 'anonymous',
-      userId: user?.id || 'anonymous',
-      isAnonymous,
-      hasSession: !!currentSession,
-      sessionDetails: currentSession
-        ? { id: currentSession.id, userId: currentSession.user_id }
-        : null,
-    })
-
-    setIsLoading(true)
-    // Use the saved duration from recordingDurationRef
-    const messageDuration = recordingDurationRef.current
-    console.log('[ChatInterface] Using saved duration for message:', messageDuration)
-    
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      session_id: currentSession?.id || 'anonymous',
-      speaker: 'USER',
-      content: text,
-      duration: messageDuration,
-      created_at: new Date().toISOString(),
-    }
-
-    // Add user message immediately
-    setMessages((prev) => [...prev, userMessage])
-
-    // Update speaking time with saved duration
-    const newSpeakingTime = totalSpeakingTime + messageDuration
-    setTotalSpeakingTime(newSpeakingTime)
-    console.log('[ChatInterface] Updated total speaking time:', newSpeakingTime, 'added:', messageDuration)
-    
-    // Reset recording duration for next message
-    recordingDurationRef.current = 0
-
-    // Save user message to database first (for authenticated users)
-    let savedMessageId = userMessage.id
-    if (!isAnonymous && user && currentSession) {
-      try {
-        console.log('[ChatInterface] Saving user message to database...')
-        const { data: savedMessage, error: saveError } = await supabase
-          .from('messages')
-          .insert({
-            session_id: currentSession.id,
-            speaker: 'USER',
-            content: text,
-            duration: messageDuration,
-          })
-          .select()
+      // For authenticated users, verify session exists in database before sending
+      if (!isAnonymous && currentSession) {
+        console.log('[ChatInterface] Verifying session before sending message:', currentSession.id)
+        const { data: sessionExists, error: checkError } = await supabase
+          .from('sessions')
+          .select('id')
+          .eq('id', currentSession.id)
           .single()
-        
-        if (saveError) {
-          console.error('[ChatInterface] Error saving message:', saveError)
-        } else if (savedMessage) {
-          savedMessageId = savedMessage.id
-          console.log('[ChatInterface] Message saved with ID:', savedMessageId)
-        }
-      } catch (error) {
-        console.error('[ChatInterface] Exception saving message:', error)
-      }
-    }
 
-    // Analyze errors for authenticated users (after message is saved)
-    if (!isAnonymous && user && currentSession && savedMessageId) {
-      try {
-        console.log('[ChatInterface] Starting error analysis for message:', {
-          messageId: savedMessageId,
-          userId: user.id,
-          sessionId: currentSession.id,
-          contentLength: text.length,
-          duration: messageDuration,
-        })
-        
-        const analyzePayload = {
-          messageId: savedMessageId,
-          userId: user.id,
-          sessionId: currentSession.id,
-          content: text,
-          duration: messageDuration,
-        }
-        
-        console.log('[ChatInterface] Calling analyze-errors API with payload:', analyzePayload)
-        
-        const analyzeRequestId = `chat_${Date.now()}_${Math.random().toString(36).substring(7)}`
-        console.log(`[ChatInterface][${analyzeRequestId}] Starting analyze-errors request`)
-        
-        const analyzeResponse = await apiFetch('/api/analyze-errors', {
-          method: 'POST',
-          body: JSON.stringify(analyzePayload),
-          headers: {
-            'X-Request-ID': analyzeRequestId,
-          },
-        })
-
-        console.log(`[ChatInterface][${analyzeRequestId}] analyze-errors response status:`, analyzeResponse.status)
-
-        if (!analyzeResponse.ok) {
-          const errorText = await analyzeResponse.text()
-          console.error(`[ChatInterface][${analyzeRequestId}] analyze-errors API failed:`, {
-            status: analyzeResponse.status,
-            statusText: analyzeResponse.statusText,
-            error: errorText,
+        if (checkError || !sessionExists) {
+          console.error('[ChatInterface] Session verification failed before sending:', {
+            sessionId: currentSession.id,
+            error: checkError,
+            exists: !!sessionExists,
           })
-          
-          // Try to parse error details if in development
-          try {
-            const errorData = JSON.parse(errorText)
-            if (errorData.details) {
-              console.error(`[ChatInterface][${analyzeRequestId}] Error details:`, errorData.details)
-            }
-          } catch (e) {
-            // Not JSON, ignore
-          }
-        } else {
-          const result = await analyzeResponse.json()
-          console.log(`[ChatInterface][${analyzeRequestId}] Error analysis complete. Full result:`, result)
-          console.log(`[ChatInterface][${analyzeRequestId}] Analysis summary:`, {
-            success: result.success,
-            correctionId: result.correctionId,
-            errorCount: result.errorCount,
-            primaryErrors: result.primaryErrors,
-          })
-          
-          // Log debug info if available (in development)
-          if (result.debug) {
-            console.log(`[ChatInterface][${analyzeRequestId}] Debug info:`, result.debug)
-          }
-        }
-      } catch (error) {
-        console.error('[ChatInterface] Exception in analyze-errors call:', {
-          error,
-          message: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined,
-        })
-        // Don't fail the whole message if error analysis fails
-      }
-    } else {
-      console.log('[ChatInterface] Skipping error analysis:', {
-        isAnonymous,
-        hasUser: !!user,
-        hasSession: !!currentSession,
-      })
-    }
 
-    try {
-      // Call OpenAI via API route
-      // For authenticated users without a session, don't send 'anonymous'
-      const messagePayload = {
-        message: text,
-        sessionId: isAnonymous ? 'anonymous' : currentSession?.id || null,
-        userId: isAnonymous ? 'anonymous' : user?.id || null,
-        isAnonymous,
-      }
-
-      console.log('[ChatInterface] Sending chat request with payload:', messagePayload)
-
-      const response = await apiFetch('/api/chat', {
-        method: 'POST',
-        body: JSON.stringify(messagePayload),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-
-        // If session not found and we haven't retried yet, recreate session
-        if (
-          response.status === 404 &&
-          errorData.error === 'Session not found' &&
-          !sessionRetryRef.current &&
-          !isAnonymous
-        ) {
-          console.log('[ChatInterface] Session not found, creating NEW session...')
-          sessionRetryRef.current = true
-
-          // Remove the failed message
-          setMessages((prev) => prev.slice(0, -1))
-
-          // Force create a NEW session (don't reuse existing)
+          // Session doesn't exist, create a new one
           updateSession(null)
-          const newSession = await createOrGetSession(true) // Force new session
-
-          // Reset retry flag after delay
-          setTimeout(() => {
-            sessionRetryRef.current = false
-          }, 2000)
-
-          // If we got a new session, retry the message
-          if (newSession) {
-            console.log('[ChatInterface] Retrying message with new session:', newSession.id)
-            // Retry the message with the new session
-            handleSendMessage(text, newSession)
+          const newSession = await createOrGetSession(true)
+          if (!newSession) {
+            console.error('[ChatInterface] Failed to create new session after verification failure')
+            return
           }
-          return
+          console.log(
+            '[ChatInterface] Created new session after verification failure:',
+            newSession.id
+          )
+          // Use the new session for this message
+          return handleSendMessage(text, newSession)
+        } else {
+          console.log('[ChatInterface] Session verified successfully:', sessionExists.id)
         }
-
-        throw new Error(errorData.error || 'Failed to get AI response')
       }
 
-      const data = await response.json()
+      // Log the current session state before sending
+      console.log('[ChatInterface] Current session state:', {
+        session: currentSession,
+        sessionId: currentSession?.id,
+        sessionUserId: currentSession?.user_id,
+        currentUserId: user?.id,
+        isAnonymous,
+      })
 
-      // Add AI message
-      const aiMessage: Message = {
+      console.log('[ChatInterface] Sending message:', {
+        textLength: text.length,
+        sessionId: currentSession?.id || 'anonymous',
+        userId: user?.id || 'anonymous',
+        isAnonymous,
+        hasSession: !!currentSession,
+        sessionDetails: currentSession
+          ? { id: currentSession.id, userId: currentSession.user_id }
+          : null,
+      })
+
+      setIsLoading(true)
+      // Use the saved duration from recordingDurationRef
+      const messageDuration = recordingDurationRef.current
+      console.log('[ChatInterface] Using saved duration for message:', messageDuration)
+
+      const userMessage: Message = {
         id: crypto.randomUUID(),
         session_id: currentSession?.id || 'anonymous',
-        speaker: 'AI',
-        content: data.message,
-        duration: null,
+        speaker: 'USER',
+        content: text,
+        duration: messageDuration,
         created_at: new Date().toISOString(),
       }
 
-      setMessages((prev) => [...prev, aiMessage])
+      // Add user message immediately
+      setMessages((prev) => [...prev, userMessage])
 
-      // Speak the AI response if voice is enabled
-      if (voiceEnabled) {
-        console.log('[ChatInterface] Speaking AI response:', data.message.substring(0, 50) + '...')
-        speak(data.message)
+      // Update speaking time with saved duration
+      const newSpeakingTime = totalSpeakingTime + messageDuration
+      setTotalSpeakingTime(newSpeakingTime)
+      console.log(
+        '[ChatInterface] Updated total speaking time:',
+        newSpeakingTime,
+        'added:',
+        messageDuration
+      )
+
+      // Reset recording duration for next message
+      recordingDurationRef.current = 0
+
+      // Save user message to database first (for authenticated users)
+      let savedMessageId = userMessage.id
+      if (!isAnonymous && user && currentSession) {
+        try {
+          console.log('[ChatInterface] Saving user message to database...')
+          const { data: savedMessage, error: saveError } = await supabase
+            .from('messages')
+            .insert({
+              session_id: currentSession.id,
+              speaker: 'USER',
+              content: text,
+              duration: messageDuration,
+            })
+            .select()
+            .single()
+
+          if (saveError) {
+            console.error('[ChatInterface] Error saving message:', saveError)
+          } else if (savedMessage) {
+            savedMessageId = savedMessage.id
+            console.log('[ChatInterface] Message saved with ID:', savedMessageId)
+          }
+        } catch (error) {
+          console.error('[ChatInterface] Exception saving message:', error)
+        }
+      }
+
+      // Start parallel API calls
+      const apiCalls: Promise<any>[] = []
+
+      // 1. Analyze errors for authenticated users (non-blocking)
+      if (!isAnonymous && user && currentSession && savedMessageId) {
+        const analyzePromise = (async () => {
+          try {
+            console.log('[ChatInterface] Starting error analysis for message:', {
+              messageId: savedMessageId,
+              userId: user.id,
+              sessionId: currentSession.id,
+              contentLength: text.length,
+              duration: messageDuration,
+            })
+
+            const analyzePayload = {
+              messageId: savedMessageId,
+              userId: user.id,
+              sessionId: currentSession.id,
+              content: text,
+              duration: messageDuration,
+            }
+
+            console.log('[ChatInterface] Calling analyze-errors API with payload:', analyzePayload)
+
+            const analyzeRequestId = `chat_${Date.now()}_${Math.random().toString(36).substring(7)}`
+            console.log(`[ChatInterface][${analyzeRequestId}] Starting analyze-errors request`)
+
+            const analyzeResponse = await apiFetch('/api/analyze-errors', {
+              method: 'POST',
+              body: JSON.stringify(analyzePayload),
+              headers: {
+                'X-Request-ID': analyzeRequestId,
+              },
+            })
+
+            console.log(
+              `[ChatInterface][${analyzeRequestId}] analyze-errors response status:`,
+              analyzeResponse.status
+            )
+
+            if (!analyzeResponse.ok) {
+              const errorText = await analyzeResponse.text()
+              console.error(`[ChatInterface][${analyzeRequestId}] analyze-errors API failed:`, {
+                status: analyzeResponse.status,
+                statusText: analyzeResponse.statusText,
+                error: errorText,
+              })
+
+              // Try to parse error details if in development
+              try {
+                const errorData = JSON.parse(errorText)
+                if (errorData.details) {
+                  console.error(
+                    `[ChatInterface][${analyzeRequestId}] Error details:`,
+                    errorData.details
+                  )
+                }
+              } catch (e) {
+                // Not JSON, ignore
+              }
+            } else {
+              const result = await analyzeResponse.json()
+              console.log(
+                `[ChatInterface][${analyzeRequestId}] Error analysis complete. Full result:`,
+                result
+              )
+              console.log(`[ChatInterface][${analyzeRequestId}] Analysis summary:`, {
+                success: result.success,
+                correctionId: result.correctionId,
+                errorCount: result.errorCount,
+                primaryErrors: result.primaryErrors,
+              })
+
+              // Log debug info if available (in development)
+              if (result.debug) {
+                console.log(`[ChatInterface][${analyzeRequestId}] Debug info:`, result.debug)
+              }
+            }
+          } catch (error) {
+            console.error('[ChatInterface] Exception in analyze-errors call:', {
+              error,
+              message: error instanceof Error ? error.message : 'Unknown error',
+              stack: error instanceof Error ? error.stack : undefined,
+            })
+            // Don't fail the whole message if error analysis fails
+          }
+        })()
+
+        apiCalls.push(analyzePromise)
       } else {
-        console.log('[ChatInterface] Voice disabled, not speaking')
+        console.log('[ChatInterface] Skipping error analysis:', {
+          isAnonymous,
+          hasUser: !!user,
+          hasSession: !!currentSession,
+        })
       }
 
-      // Update session speaking time in database (only for authenticated users)
-      if (currentSession && !isAnonymous) {
-        await supabase
-          .from('sessions')
-          .update({ total_speaking_time: newSpeakingTime })
-          .eq('id', currentSession.id)
+      // 2. Call OpenAI via API route (chat response)
+      const chatPromise = (async () => {
+        try {
+          // For authenticated users without a session, don't send 'anonymous'
+          const messagePayload = {
+            message: text,
+            sessionId: isAnonymous ? 'anonymous' : currentSession?.id || null,
+            userId: isAnonymous ? 'anonymous' : user?.id || null,
+            isAnonymous,
+          }
+
+          console.log('[ChatInterface] Sending chat request with payload:', messagePayload)
+
+          const response = await apiFetch('/api/chat', {
+            method: 'POST',
+            body: JSON.stringify(messagePayload),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+
+            // If session not found and we haven't retried yet, recreate session
+            if (
+              response.status === 404 &&
+              errorData.error === 'Session not found' &&
+              !sessionRetryRef.current &&
+              !isAnonymous
+            ) {
+              console.log('[ChatInterface] Session not found, creating NEW session...')
+              sessionRetryRef.current = true
+
+              // Remove the failed message
+              setMessages((prev) => prev.slice(0, -1))
+
+              // Force create a NEW session (don't reuse existing)
+              updateSession(null)
+              const newSession = await createOrGetSession(true) // Force new session
+
+              // Reset retry flag after delay
+              setTimeout(() => {
+                sessionRetryRef.current = false
+              }, 2000)
+
+              // If we got a new session, retry the message
+              if (newSession) {
+                console.log('[ChatInterface] Retrying message with new session:', newSession.id)
+                // Retry the message with the new session
+                handleSendMessage(text, newSession)
+              }
+              return
+            }
+
+            throw new Error(errorData.error || 'Failed to get AI response')
+          }
+
+          const data = await response.json()
+
+          // Add AI message
+          const aiMessage: Message = {
+            id: crypto.randomUUID(),
+            session_id: currentSession?.id || 'anonymous',
+            speaker: 'AI',
+            content: data.message,
+            duration: null,
+            created_at: new Date().toISOString(),
+          }
+
+          setMessages((prev) => [...prev, aiMessage])
+
+          // Speak the AI response if voice is enabled
+          if (voiceEnabled) {
+            console.log(
+              '[ChatInterface] Speaking AI response:',
+              data.message.substring(0, 50) + '...'
+            )
+            speak(data.message)
+          } else {
+            console.log('[ChatInterface] Voice disabled, not speaking')
+          }
+
+          // Update session speaking time in database (only for authenticated users)
+          if (currentSession && !isAnonymous) {
+            await supabase
+              .from('sessions')
+              .update({ total_speaking_time: newSpeakingTime })
+              .eq('id', currentSession.id)
+          }
+
+          return { success: true }
+        } catch (error) {
+          console.error('Error sending message:', error)
+          // Add error message
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              session_id: currentSession?.id || 'anonymous',
+              speaker: 'AI',
+              content: "I'm sorry, I couldn't process that. Please try again.",
+              duration: null,
+              created_at: new Date().toISOString(),
+            },
+          ])
+          return { success: false, error }
+        }
+      })()
+
+      apiCalls.push(chatPromise)
+
+      try {
+        // Wait for both API calls to complete
+        console.log('[ChatInterface] Running API calls in parallel...')
+        const startTime = Date.now()
+
+        const results = await Promise.allSettled(apiCalls)
+
+        const endTime = Date.now()
+        console.log('[ChatInterface] API calls completed in', endTime - startTime, 'ms')
+
+        // Log results for debugging
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.error(`[ChatInterface] API call ${index} failed:`, result.reason)
+          }
+        })
+
+        // Check if chat succeeded
+        const chatResult = await chatPromise
+        if (!chatResult.success && chatResult.error) {
+          throw chatResult.error
+        }
+      } catch (error) {
+        console.error('[ChatInterface] Error in parallel API calls:', error)
+        // Error handling already done in individual promises
+      } finally {
+        setIsLoading(false)
       }
-    } catch (error) {
-      console.error('Error sending message:', error)
-      // Add error message
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          session_id: currentSession?.id || 'anonymous',
-          speaker: 'AI',
-          content: "I'm sorry, I couldn't process that. Please try again.",
-          duration: null,
-          created_at: new Date().toISOString(),
-        },
-      ])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [isLoading, isAnonymous, user, sessionRef, totalSpeakingTime, voiceEnabled, speak, supabase, apiFetch, setMessages, setTotalSpeakingTime, createOrGetSession])
+    },
+    [
+      isLoading,
+      isAnonymous,
+      user,
+      sessionRef,
+      totalSpeakingTime,
+      voiceEnabled,
+      speak,
+      supabase,
+      apiFetch,
+      setMessages,
+      setTotalSpeakingTime,
+      createOrGetSession,
+    ]
+  )
 
   // Handle transcript updates - must be after handleSendMessage declaration
   useEffect(() => {

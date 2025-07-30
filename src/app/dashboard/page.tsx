@@ -48,8 +48,17 @@ function DashboardContent() {
     }
 
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const now = new Date()
+      const today = now.toISOString().split('T')[0]
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      
+      console.log('[Dashboard] Date calculation:', {
+        clientTime: now.toISOString(),
+        clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        todayDate: today,
+        weekAgoDate: weekAgo,
+        timestamp: now.getTime(),
+      })
 
       // If debug mode, fetch debug data
       if (isDebugMode) {
