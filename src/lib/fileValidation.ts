@@ -66,25 +66,46 @@ export async function validateAudioFile(file: File | Blob): Promise<ValidationRe
 
   // Check magic numbers (file signature)
   try {
-    const buffer = await file.slice(0, 8).arrayBuffer()
+    const buffer = await file.slice(0, 12).arrayBuffer()
     const bytes = new Uint8Array(buffer)
+
+    console.log('[FileValidation] Checking file magic numbers:', {
+      fileType: file.type,
+      fileSize: file.size,
+      first12Bytes: Array.from(bytes)
+        .map((b) => '0x' + b.toString(16).padStart(2, '0'))
+        .join(' '),
+    })
 
     let isValidMagicNumber = false
 
-    for (const [, magicBytes] of Object.entries(MAGIC_NUMBERS)) {
-      if (magicBytes.every((byte, index) => bytes[index] === byte)) {
+    // Special handling for WebM - check only first 4 bytes and be more lenient
+    if (baseType === 'audio/webm' || file.type.includes('webm')) {
+      const webmMagic = [0x1a, 0x45, 0xdf, 0xa3]
+      if (webmMagic.every((byte, index) => bytes[index] === byte)) {
         isValidMagicNumber = true
-        break
+        console.log('[FileValidation] Valid WebM file detected')
+      }
+    } else {
+      // For other formats, check exact magic numbers
+      for (const [format, magicBytes] of Object.entries(MAGIC_NUMBERS)) {
+        if (magicBytes.every((byte, index) => bytes[index] === byte)) {
+          isValidMagicNumber = true
+          console.log(`[FileValidation] Valid ${format} file detected`)
+          break
+        }
       }
     }
 
     if (!isValidMagicNumber) {
+      console.error('[FileValidation] No valid magic number found for file type:', baseType)
       return {
         valid: false,
         error: 'File content does not match expected audio format',
       }
     }
   } catch (error) {
+    console.error('[FileValidation] Error reading file content:', error)
     return {
       valid: false,
       error: 'Failed to validate file content',
