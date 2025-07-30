@@ -49,15 +49,26 @@ function DashboardContent() {
 
     try {
       const now = new Date()
-      const today = now.toISOString().split('T')[0]
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      // Use UTC dates for consistency with analyze-errors
+      const utcYear = now.getUTCFullYear()
+      const utcMonth = String(now.getUTCMonth() + 1).padStart(2, '0')
+      const utcDay = String(now.getUTCDate()).padStart(2, '0')
+      const today = `${utcYear}-${utcMonth}-${utcDay}`
+      
+      const weekAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      const weekAgoYear = weekAgoDate.getUTCFullYear()
+      const weekAgoMonth = String(weekAgoDate.getUTCMonth() + 1).padStart(2, '0')
+      const weekAgoDay = String(weekAgoDate.getUTCDate()).padStart(2, '0')
+      const weekAgo = `${weekAgoYear}-${weekAgoMonth}-${weekAgoDay}`
       
       console.log('[Dashboard] Date calculation:', {
         clientTime: now.toISOString(),
         clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        utcTime: now.toUTCString(),
         todayDate: today,
         weekAgoDate: weekAgo,
         timestamp: now.getTime(),
+        utcComponents: { year: utcYear, month: utcMonth, day: utcDay },
       })
 
       // If debug mode, fetch debug data

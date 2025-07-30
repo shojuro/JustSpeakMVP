@@ -50,6 +50,16 @@ const PRIMARY_ERROR_TYPES = [
 export async function POST(request: NextRequest) {
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(7)}`
   console.log(`[analyze-errors][${requestId}] API endpoint called`)
+  
+  // Log environment variables status
+  console.log(`[analyze-errors][${requestId}] Environment check:`, {
+    hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+    openAIKeyLength: process.env.OPENAI_API_KEY?.length || 0,
+    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0,
+    hasSupabaseURL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    nodeEnv: process.env.NODE_ENV,
+  })
 
   const debugInfo: any = {
     requestId,
@@ -356,14 +366,21 @@ Format as JSON:
 
     console.log(`[analyze-errors][${requestId}] Correction saved successfully:`, correction?.id)
 
-    // Update user progress
+    // Update user progress - Force UTC timezone
     const now = new Date()
-    const today = now.toISOString().split('T')[0]
+    // Convert to UTC date string to ensure consistency
+    const utcYear = now.getUTCFullYear()
+    const utcMonth = String(now.getUTCMonth() + 1).padStart(2, '0')
+    const utcDay = String(now.getUTCDate()).padStart(2, '0')
+    const today = `${utcYear}-${utcMonth}-${utcDay}`
+    
     console.log(`[analyze-errors][${requestId}] Date calculation:`, {
       serverTime: now.toISOString(),
       serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      utcTime: now.toUTCString(),
       dateUsed: today,
       timestamp: now.getTime(),
+      utcComponents: { year: utcYear, month: utcMonth, day: utcDay },
     })
 
     // Get existing progress for today using service role client
