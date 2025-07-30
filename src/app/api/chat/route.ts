@@ -294,29 +294,10 @@ Your role is to:
       willSaveToDb: !isAnonymous && sessionId !== 'anonymous',
     })
 
-    // Save both messages to database (only for authenticated users)
+    // Save AI message to database (only for authenticated users)
+    // Note: User message is now saved in ChatInterface before calling this API
     if (!isAnonymous && sessionId !== 'anonymous') {
-      console.log('[Chat API] Saving messages to database for session:', sessionId)
-
-      // Insert user message
-      const { data: userMessage, error: userInsertError } = await supabase
-        .from('messages')
-        .insert({
-          session_id: sessionId,
-          speaker: 'USER',
-          content: sanitizedMessage,
-        })
-        .select()
-        .single()
-
-      if (userInsertError) {
-        console.error('[Chat API] Error saving user message:', {
-          error: userInsertError.message,
-          code: userInsertError.code,
-          details: userInsertError.details,
-        })
-        // Don't fail the whole request if message saving fails
-      }
+      console.log('[Chat API] Saving AI message to database for session:', sessionId)
 
       // Insert AI message
       const { error: aiInsertError } = await supabase.from('messages').insert({
@@ -333,39 +314,7 @@ Your role is to:
         })
       }
 
-      // Check if we should analyze this message (every 3rd message)
-      if (userMessage && userId) {
-        try {
-          const { count } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('session_id', sessionId)
-            .eq('speaker', 'USER')
-
-          console.log('[Chat API] Message count for error analysis:', count)
-
-          if (count && count % 3 === 0) {
-            console.log('[Chat API] Triggering error analysis for message', userMessage.id)
-            // Trigger error analysis in the background
-            // Use absolute URL for server-side fetch
-            const baseUrl =
-              process.env.NEXT_PUBLIC_APP_URL || `https://${request.headers.get('host')}`
-            fetch(`${baseUrl}/api/analyze-errors`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                messageId: userMessage.id,
-                userId,
-                sessionId,
-                content: sanitizedMessage,
-                duration: 0, // Duration will be added when we implement it
-              }),
-            }).catch((err) => console.error('[Chat API] Error analysis failed:', err))
-          }
-        } catch (error) {
-          console.error('[Chat API] Error checking for analysis trigger:', error)
-        }
-      }
+      // Note: Error analysis is now done in ChatInterface after saving the user message
     }
 
     return NextResponse.json({ message: aiResponse })

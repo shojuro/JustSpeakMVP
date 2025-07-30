@@ -385,34 +385,92 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
     // Reset recording duration for next message
     recordingDurationRef.current = 0
 
-    // Analyze errors for authenticated users
+    // Save user message to database first (for authenticated users)
+    let savedMessageId = userMessage.id
     if (!isAnonymous && user && currentSession) {
       try {
-        console.log('[ChatInterface] Analyzing errors for message')
-        const analyzeResponse = await apiFetch('/api/analyze-errors', {
-          method: 'POST',
-          body: JSON.stringify({
-            messageId: userMessage.id,
-            userId: user.id,
-            sessionId: currentSession.id,
+        console.log('[ChatInterface] Saving user message to database...')
+        const { data: savedMessage, error: saveError } = await supabase
+          .from('messages')
+          .insert({
+            session_id: currentSession.id,
+            speaker: 'USER',
             content: text,
             duration: messageDuration,
-          }),
+          })
+          .select()
+          .single()
+        
+        if (saveError) {
+          console.error('[ChatInterface] Error saving message:', saveError)
+        } else if (savedMessage) {
+          savedMessageId = savedMessage.id
+          console.log('[ChatInterface] Message saved with ID:', savedMessageId)
+        }
+      } catch (error) {
+        console.error('[ChatInterface] Exception saving message:', error)
+      }
+    }
+
+    // Analyze errors for authenticated users (after message is saved)
+    if (!isAnonymous && user && currentSession && savedMessageId) {
+      try {
+        console.log('[ChatInterface] Starting error analysis for message:', {
+          messageId: savedMessageId,
+          userId: user.id,
+          sessionId: currentSession.id,
+          contentLength: text.length,
+          duration: messageDuration,
+        })
+        
+        const analyzePayload = {
+          messageId: savedMessageId,
+          userId: user.id,
+          sessionId: currentSession.id,
+          content: text,
+          duration: messageDuration,
+        }
+        
+        console.log('[ChatInterface] Calling analyze-errors API with payload:', analyzePayload)
+        
+        const analyzeResponse = await apiFetch('/api/analyze-errors', {
+          method: 'POST',
+          body: JSON.stringify(analyzePayload),
         })
 
+        console.log('[ChatInterface] analyze-errors response status:', analyzeResponse.status)
+
         if (!analyzeResponse.ok) {
-          console.error('[ChatInterface] Failed to analyze errors:', await analyzeResponse.text())
+          const errorText = await analyzeResponse.text()
+          console.error('[ChatInterface] analyze-errors API failed:', {
+            status: analyzeResponse.status,
+            statusText: analyzeResponse.statusText,
+            error: errorText,
+          })
         } else {
           const result = await analyzeResponse.json()
-          console.log('[ChatInterface] Error analysis complete:', {
+          console.log('[ChatInterface] Error analysis complete. Full result:', result)
+          console.log('[ChatInterface] Analysis summary:', {
+            success: result.success,
+            correctionId: result.correctionId,
             errorCount: result.errorCount,
             primaryErrors: result.primaryErrors,
           })
         }
       } catch (error) {
-        console.error('[ChatInterface] Error calling analyze-errors:', error)
+        console.error('[ChatInterface] Exception in analyze-errors call:', {
+          error,
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+        })
         // Don't fail the whole message if error analysis fails
       }
+    } else {
+      console.log('[ChatInterface] Skipping error analysis:', {
+        isAnonymous,
+        hasUser: !!user,
+        hasSession: !!currentSession,
+      })
     }
 
     try {
