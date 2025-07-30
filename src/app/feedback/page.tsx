@@ -168,6 +168,19 @@ export default function FeedbackPage() {
         .order('created_at', { ascending: true })
 
       if (messagesError) throw messagesError
+      
+      // Debug logging to understand timestamp mismatch
+      if (messagesData && messagesData.length > 0 && selectedSession) {
+        console.log('[Feedback] Session vs Messages timestamps:', {
+          sessionCreatedAt: selectedSession.created_at,
+          sessionTime: new Date(selectedSession.created_at).toLocaleString(),
+          firstMessageCreatedAt: messagesData[0].created_at,
+          firstMessageTime: new Date(messagesData[0].created_at).toLocaleString(),
+          timeDiff: new Date(messagesData[0].created_at).getTime() - new Date(selectedSession.created_at).getTime(),
+          timeDiffMinutes: (new Date(messagesData[0].created_at).getTime() - new Date(selectedSession.created_at).getTime()) / 1000 / 60,
+        })
+      }
+      
       setMessages(messagesData || [])
 
       // Load corrections for this session
@@ -355,12 +368,16 @@ export default function FeedbackPage() {
             className="w-full p-2 border border-border-light rounded"
           >
             <option value="">Choose a session...</option>
-            {sessions.map((session) => (
-              <option key={session.id} value={session.id}>
-                {formatDateTime(session.created_at)} - Duration:{' '}
-                {formatDuration(session.total_speaking_time)}
-              </option>
-            ))}
+            {sessions.map((session) => {
+              // Use the session's created_at for now, but ideally we'd use the first message time
+              const sessionTime = session.created_at
+              return (
+                <option key={session.id} value={session.id}>
+                  {formatDateTime(sessionTime)} - Duration:{' '}
+                  {formatDuration(session.total_speaking_time)}
+                </option>
+              )
+            })}
           </select>
         </div>
 
@@ -417,7 +434,12 @@ export default function FeedbackPage() {
                     }`}
                   >
                     <div className="text-xs text-text-muted mb-1">
-                      {message.speaker} - {new Date(message.created_at).toLocaleTimeString()}
+                      {message.speaker} - {new Date(message.created_at).toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit', 
+                        second: '2-digit',
+                        hour12: true 
+                      })}
                     </div>
                     <div className="text-sm text-text-primary">{message.content}</div>
                   </div>
