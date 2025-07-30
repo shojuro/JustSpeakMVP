@@ -48,11 +48,20 @@ const PRIMARY_ERROR_TYPES = [
 ]
 
 export async function POST(request: NextRequest) {
-  console.log('[analyze-errors] API endpoint called')
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(7)}`
+  console.log(`[analyze-errors][${requestId}] API endpoint called`)
+  
+  const debugInfo: any = {
+    requestId,
+    timestamp: new Date().toISOString(),
+    clientInfo: {},
+    operations: [],
+  }
   
   try {
     const body = await request.json()
-    console.log('[analyze-errors] Request body:', body)
+    console.log(`[analyze-errors][${requestId}] Request body:`, body)
+    debugInfo.clientInfo = { ...body }
     
     const { messageId, userId, sessionId, content, duration } = body
 
@@ -66,7 +75,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    console.log('[analyze-errors] Validated input:', {
+    console.log(`[analyze-errors][${requestId}] Validated input:`, {
       messageId,
       userId,
       sessionId,
@@ -207,18 +216,52 @@ Format as JSON:
     
     // Get service role client for database operations (with fallback)
     let dbClient = supabase // Default to regular client
+    let clientType = 'regular'
+    
     try {
       if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.log(`[analyze-errors][${requestId}] Attempting to create service role client...`)
+        console.log(`[analyze-errors][${requestId}] Service key present:`, !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+        console.log(`[analyze-errors][${requestId}] Service key length:`, process.env.SUPABASE_SERVICE_ROLE_KEY?.length)
+        console.log(`[analyze-errors][${requestId}] Supabase URL:`, process.env.NEXT_PUBLIC_SUPABASE_URL)
+        
         dbClient = getServiceSupabase()
-        console.log('[analyze-errors] Using service role client for database operations')
+        clientType = 'service-role'
+        console.log(`[analyze-errors][${requestId}] Successfully created service role client`)
+        
+        debugInfo.operations.push({
+          operation: 'create_service_client',
+          success: true,
+          timestamp: new Date().toISOString(),
+        })
       } else {
-        console.log('[analyze-errors] Service role key not configured, using regular client')
-        console.log('[analyze-errors] Note: This may fail due to RLS policies')
+        console.log(`[analyze-errors][${requestId}] Service role key not configured, using regular client`)
+        console.log(`[analyze-errors][${requestId}] Note: This may fail due to RLS policies`)
+        
+        debugInfo.operations.push({
+          operation: 'create_service_client',
+          success: false,
+          reason: 'no_service_key',
+          timestamp: new Date().toISOString(),
+        })
       }
     } catch (error) {
-      console.error('[analyze-errors] Failed to create service role client, using regular client:', error)
+      console.error(`[analyze-errors][${requestId}] Failed to create service role client:`, error)
+      console.error(`[analyze-errors][${requestId}] Error details:`, {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      })
+      
+      debugInfo.operations.push({
+        operation: 'create_service_client',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+      })
       // Continue with regular client
     }
+    
+    debugInfo.clientType = clientType
     
     const correctionData = {
       message_id: messageId,
@@ -237,30 +280,60 @@ Format as JSON:
     
     console.log('[analyze-errors] Correction data to insert:', correctionData)
     
+    console.log(`[analyze-errors][${requestId}] Attempting to save correction with ${clientType} client...`)
+    
     const { data: correction, error: correctionError } = await dbClient
       .from('corrections')
       .insert(correctionData)
       .select()
       .single()
 
+    debugInfo.operations.push({
+      operation: 'save_correction',
+      success: !correctionError,
+      correctionId: correction?.id,
+      error: correctionError ? {
+        code: correctionError.code,
+        message: correctionError.message,
+        details: correctionError.details,
+      } : null,
+      timestamp: new Date().toISOString(),
+    })
+
     if (correctionError) {
-      console.error('[analyze-errors] Error saving correction:', {
+      console.error(`[analyze-errors][${requestId}] Error saving correction:`, {
         error: correctionError,
         code: correctionError.code,
         message: correctionError.message,
         details: correctionError.details,
+        clientType,
       })
-      return NextResponse.json({ error: 'Failed to save analysis' }, { status: 500 })
+      
+      // Return error with debug info in development
+      const errorResponse = {
+        error: 'Failed to save analysis',
+        details: process.env.NODE_ENV === 'development' ? {
+          requestId,
+          correctionError: {
+            code: correctionError.code,
+            message: correctionError.message,
+          },
+          clientType,
+          debugInfo,
+        } : undefined,
+      }
+      
+      return NextResponse.json(errorResponse, { status: 500 })
     }
     
-    console.log('[analyze-errors] Correction saved successfully:', correction?.id)
+    console.log(`[analyze-errors][${requestId}] Correction saved successfully:`, correction?.id)
 
     // Update user progress
     const today = new Date().toISOString().split('T')[0]
     console.log('[analyze-errors] Updating user progress for date:', today)
 
     // Get existing progress for today using service role client
-    console.log('[analyze-errors] Checking for existing progress...')
+    console.log(`[analyze-errors][${requestId}] Checking for existing progress...`)
     const { data: existingProgress, error: progressFetchError } = await dbClient
       .from('user_progress')
       .select('*')
@@ -268,11 +341,22 @@ Format as JSON:
       .eq('date', today)
       .maybeSingle()
     
+    debugInfo.operations.push({
+      operation: 'fetch_existing_progress',
+      success: !progressFetchError,
+      found: !!existingProgress,
+      error: progressFetchError ? {
+        code: progressFetchError.code,
+        message: progressFetchError.message,
+      } : null,
+      timestamp: new Date().toISOString(),
+    })
+    
     if (progressFetchError) {
-      console.error('[analyze-errors] Error fetching progress:', progressFetchError)
+      console.error(`[analyze-errors][${requestId}] Error fetching progress:`, progressFetchError)
     }
     
-    console.log('[analyze-errors] Existing progress:', existingProgress)
+    console.log(`[analyze-errors][${requestId}] Existing progress:`, existingProgress)
 
     if (existingProgress) {
       // Update existing progress
@@ -292,15 +376,29 @@ Format as JSON:
       
       console.log('[analyze-errors] Progress update data:', updateData)
 
-      const { error: updateError } = await dbClient
+      const { data: updatedProgress, error: updateError } = await dbClient
         .from('user_progress')
         .update(updateData)
         .eq('id', existingProgress.id)
+        .select()
+        .single()
+      
+      debugInfo.operations.push({
+        operation: 'update_progress',
+        success: !updateError,
+        progressId: existingProgress.id,
+        data: updateData,
+        error: updateError ? {
+          code: updateError.code,
+          message: updateError.message,
+        } : null,
+        timestamp: new Date().toISOString(),
+      })
       
       if (updateError) {
-        console.error('[analyze-errors] Error updating progress:', updateError)
+        console.error(`[analyze-errors][${requestId}] Error updating progress:`, updateError)
       } else {
-        console.log('[analyze-errors] Progress updated successfully')
+        console.log(`[analyze-errors][${requestId}] Progress updated successfully:`, updatedProgress)
       }
     } else {
       // Create new progress entry
@@ -317,14 +415,28 @@ Format as JSON:
       
       console.log('[analyze-errors] Progress insert data:', insertData)
       
-      const { error: insertError } = await dbClient
+      const { data: newProgress, error: insertError } = await dbClient
         .from('user_progress')
         .insert(insertData)
+        .select()
+        .single()
+      
+      debugInfo.operations.push({
+        operation: 'insert_progress',
+        success: !insertError,
+        data: insertData,
+        newProgressId: newProgress?.id,
+        error: insertError ? {
+          code: insertError.code,
+          message: insertError.message,
+        } : null,
+        timestamp: new Date().toISOString(),
+      })
       
       if (insertError) {
-        console.error('[analyze-errors] Error inserting progress:', insertError)
+        console.error(`[analyze-errors][${requestId}] Error inserting progress:`, insertError)
       } else {
-        console.log('[analyze-errors] Progress created successfully')
+        console.log(`[analyze-errors][${requestId}] Progress created successfully:`, newProgress)
       }
     }
 
@@ -333,17 +445,46 @@ Format as JSON:
       correctionId: correction?.id,
       errorCount: errorTypes.length,
       primaryErrors: errorTypes.filter((type) => PRIMARY_ERROR_TYPES.includes(type)),
+      debug: process.env.NODE_ENV === 'development' ? {
+        requestId,
+        clientType,
+        operations: debugInfo.operations,
+        summary: {
+          correctionSaved: !!correction?.id,
+          progressUpdated: debugInfo.operations.some(op => 
+            (op.operation === 'update_progress' || op.operation === 'insert_progress') && op.success
+          ),
+          errors: debugInfo.operations.filter(op => !op.success),
+        },
+      } : undefined,
     }
     
-    console.log('[analyze-errors] Returning success response:', response)
+    console.log(`[analyze-errors][${requestId}] Returning success response:`, response)
+    console.log(`[analyze-errors][${requestId}] Debug summary:`, {
+      requestId,
+      clientType,
+      operationCount: debugInfo.operations.length,
+      successfulOps: debugInfo.operations.filter(op => op.success).length,
+      failedOps: debugInfo.operations.filter(op => !op.success).length,
+    })
     
     return NextResponse.json(response)
   } catch (error) {
-    console.error('[analyze-errors] API error:', {
+    console.error(`[analyze-errors][${requestId}] API error:`, {
       error,
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
     })
-    return NextResponse.json({ error: 'Failed to analyze errors' }, { status: 500 })
+    
+    const errorResponse = {
+      error: 'Failed to analyze errors',
+      details: process.env.NODE_ENV === 'development' ? {
+        requestId,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        debugInfo,
+      } : undefined,
+    }
+    
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }

@@ -1,22 +1,37 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { supabase } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import type { Database } from '@/types/database'
 
 type UserProgress = Database['public']['Tables']['user_progress']['Row']
 type Correction = Database['public']['Tables']['corrections']['Row']
 type Session = Database['public']['Tables']['sessions']['Row']
 
-export default function DashboardPage() {
+interface DebugInfo {
+  progressDebug?: any
+  correctionsDebug?: any
+  errors: string[]
+  timestamp: string
+}
+
+function DashboardContent() {
   const { user } = useAuth()
+  const searchParams = useSearchParams()
+  const isDebugMode = searchParams.get('debug') === 'true'
+  
   const [todayProgress, setTodayProgress] = useState<UserProgress | null>(null)
   const [weekProgress, setWeekProgress] = useState<UserProgress[]>([])
   const [recentCorrections, setRecentCorrections] = useState<Correction[]>([])
   const [recentSessions, setRecentSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
+  const [debugInfo, setDebugInfo] = useState<DebugInfo>({
+    errors: [],
+    timestamp: new Date().toISOString(),
+  })
 
   useEffect(() => {
     if (user) {
@@ -27,20 +42,60 @@ export default function DashboardPage() {
   const loadDashboardData = async () => {
     if (!user) return
 
+    const newDebugInfo: DebugInfo = {
+      errors: [],
+      timestamp: new Date().toISOString(),
+    }
+
     try {
       const today = new Date().toISOString().split('T')[0]
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
+      // If debug mode, fetch debug data
+      if (isDebugMode) {
+        try {
+          console.log('[Dashboard Debug] Fetching debug data...')
+          
+          // Fetch progress debug info
+          const progressDebugResponse = await fetch(`/api/debug-progress?userId=${user.id}`)
+          if (progressDebugResponse.ok) {
+            newDebugInfo.progressDebug = await progressDebugResponse.json()
+            console.log('[Dashboard Debug] Progress debug:', newDebugInfo.progressDebug)
+          } else {
+            newDebugInfo.errors.push(`Progress debug failed: ${progressDebugResponse.status}`)
+          }
+
+          // Fetch corrections debug info
+          const correctionsDebugResponse = await fetch(`/api/debug-corrections?userId=${user.id}`)
+          if (correctionsDebugResponse.ok) {
+            newDebugInfo.correctionsDebug = await correctionsDebugResponse.json()
+            console.log('[Dashboard Debug] Corrections debug:', newDebugInfo.correctionsDebug)
+          } else {
+            newDebugInfo.errors.push(`Corrections debug failed: ${correctionsDebugResponse.status}`)
+          }
+        } catch (error) {
+          console.error('[Dashboard Debug] Error fetching debug data:', error)
+          newDebugInfo.errors.push(`Debug fetch error: ${error instanceof Error ? error.message : 'Unknown'}`)
+        }
+      }
+
       // Load today's progress
-      const { data: todayData } = await supabase
+      console.log(`[Dashboard] Loading today's progress for ${today}...`)
+      const { data: todayData, error: todayError } = await supabase
         .from('user_progress')
         .select('*')
         .eq('user_id', user.id)
         .eq('date', today)
         .maybeSingle()
 
-      if (todayData) {
-        setTodayProgress(todayData)
+      if (todayError) {
+        console.error('[Dashboard] Error loading today\'s progress:', todayError)
+        newDebugInfo.errors.push(`Today's progress: ${todayError.message}`)
+      } else {
+        console.log('[Dashboard] Today\'s progress:', todayData)
+        if (todayData) {
+          setTodayProgress(todayData)
+        }
       }
 
       // Load week's progress
@@ -80,8 +135,12 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error)
+      newDebugInfo.errors.push(`General error: ${error instanceof Error ? error.message : 'Unknown'}`)
     } finally {
       setLoading(false)
+      if (isDebugMode) {
+        setDebugInfo(newDebugInfo)
+      }
     }
   }
 
@@ -312,7 +371,97 @@ export default function DashboardPage() {
             Focus on communicating your ideas - perfection comes with time.
           </p>
         </div>
+
+        {/* Debug Panel */}
+        {isDebugMode && (
+          <div className="bg-gray-900 text-gray-100 rounded-lg p-6 font-mono text-sm">
+            <h2 className="text-lg font-semibold mb-4 text-yellow-400">Debug Information</h2>
+            
+            {/* Debug Controls */}
+            <div className="mb-4 flex gap-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs"
+              >
+                Refresh Data
+              </button>
+              <a
+                href={`/api/debug-progress?userId=${user?.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-xs"
+              >
+                Progress API
+              </a>
+              <a
+                href={`/api/debug-corrections?userId=${user?.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-xs"
+              >
+                Corrections API
+              </a>
+            </div>
+
+            {/* Errors */}
+            {debugInfo.errors.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-red-400 font-semibold mb-2">Errors:</h3>
+                <ul className="list-disc list-inside">
+                  {debugInfo.errors.map((error, index) => (
+                    <li key={index} className="text-red-300">{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Progress Debug */}
+            {debugInfo.progressDebug && (
+              <div className="mb-4">
+                <h3 className="text-green-400 font-semibold mb-2">User Progress Debug:</h3>
+                <div className="bg-gray-800 p-3 rounded overflow-auto max-h-96">
+                  <pre className="text-xs">{JSON.stringify(debugInfo.progressDebug, null, 2)}</pre>
+                </div>
+              </div>
+            )}
+
+            {/* Corrections Debug */}
+            {debugInfo.correctionsDebug && (
+              <div className="mb-4">
+                <h3 className="text-green-400 font-semibold mb-2">Corrections Debug:</h3>
+                <div className="bg-gray-800 p-3 rounded overflow-auto max-h-96">
+                  <pre className="text-xs">{JSON.stringify(debugInfo.correctionsDebug, null, 2)}</pre>
+                </div>
+              </div>
+            )}
+
+            {/* Current Data */}
+            <div className="mb-4">
+              <h3 className="text-blue-400 font-semibold mb-2">Current Dashboard Data:</h3>
+              <div className="bg-gray-800 p-3 rounded overflow-auto max-h-96">
+                <pre className="text-xs">{JSON.stringify({
+                  todayProgress,
+                  weekProgressCount: weekProgress.length,
+                  recentCorrectionsCount: recentCorrections.length,
+                  recentSessionsCount: recentSessions.length,
+                  userId: user?.id,
+                  timestamp: debugInfo.timestamp,
+                }, null, 2)}</pre>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-bg-secondary flex items-center justify-center">
+      <div className="text-text-secondary">Loading dashboard...</div>
+    </div>}>
+      <DashboardContent />
+    </Suspense>
   )
 }

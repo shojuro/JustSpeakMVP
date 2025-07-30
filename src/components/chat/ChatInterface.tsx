@@ -433,29 +433,50 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
         
         console.log('[ChatInterface] Calling analyze-errors API with payload:', analyzePayload)
         
+        const analyzeRequestId = `chat_${Date.now()}_${Math.random().toString(36).substring(7)}`
+        console.log(`[ChatInterface][${analyzeRequestId}] Starting analyze-errors request`)
+        
         const analyzeResponse = await apiFetch('/api/analyze-errors', {
           method: 'POST',
           body: JSON.stringify(analyzePayload),
+          headers: {
+            'X-Request-ID': analyzeRequestId,
+          },
         })
 
-        console.log('[ChatInterface] analyze-errors response status:', analyzeResponse.status)
+        console.log(`[ChatInterface][${analyzeRequestId}] analyze-errors response status:`, analyzeResponse.status)
 
         if (!analyzeResponse.ok) {
           const errorText = await analyzeResponse.text()
-          console.error('[ChatInterface] analyze-errors API failed:', {
+          console.error(`[ChatInterface][${analyzeRequestId}] analyze-errors API failed:`, {
             status: analyzeResponse.status,
             statusText: analyzeResponse.statusText,
             error: errorText,
           })
+          
+          // Try to parse error details if in development
+          try {
+            const errorData = JSON.parse(errorText)
+            if (errorData.details) {
+              console.error(`[ChatInterface][${analyzeRequestId}] Error details:`, errorData.details)
+            }
+          } catch (e) {
+            // Not JSON, ignore
+          }
         } else {
           const result = await analyzeResponse.json()
-          console.log('[ChatInterface] Error analysis complete. Full result:', result)
-          console.log('[ChatInterface] Analysis summary:', {
+          console.log(`[ChatInterface][${analyzeRequestId}] Error analysis complete. Full result:`, result)
+          console.log(`[ChatInterface][${analyzeRequestId}] Analysis summary:`, {
             success: result.success,
             correctionId: result.correctionId,
             errorCount: result.errorCount,
             primaryErrors: result.primaryErrors,
           })
+          
+          // Log debug info if available (in development)
+          if (result.debug) {
+            console.log(`[ChatInterface][${analyzeRequestId}] Debug info:`, result.debug)
+          }
         }
       } catch (error) {
         console.error('[ChatInterface] Exception in analyze-errors call:', {
