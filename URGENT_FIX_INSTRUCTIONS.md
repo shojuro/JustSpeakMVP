@@ -26,6 +26,7 @@ SUPABASE_SERVICE_ROLE_KEY=[Copy from your local .env file]
 ### 2. Verify Environment Variables
 
 After adding, visit this URL to verify they're set:
+
 ```
 https://just-speak-mvp-7uhu-r5277v4ay-shojuros-projects.vercel.app/api/debug-env-status
 ```
@@ -57,6 +58,7 @@ Once environment variables are added:
 ## Timeline Fix Explanation
 
 The timezone issue occurs because:
+
 - Client shows local time (Bangkok - UTC+7)
 - Server was using inconsistent date handling
 - Now fixed to use UTC dates consistently

@@ -50,7 +50,7 @@ const PRIMARY_ERROR_TYPES = [
 export async function POST(request: NextRequest) {
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(7)}`
   console.log(`[analyze-errors][${requestId}] API endpoint called`)
-  
+
   // Log environment variables status
   console.log(`[analyze-errors][${requestId}] Environment check:`, {
     hasOpenAIKey: !!process.env.OPENAI_API_KEY,
@@ -373,7 +373,7 @@ Format as JSON:
     const utcMonth = String(now.getUTCMonth() + 1).padStart(2, '0')
     const utcDay = String(now.getUTCDate()).padStart(2, '0')
     const today = `${utcYear}-${utcMonth}-${utcDay}`
-    
+
     console.log(`[analyze-errors][${requestId}] Date calculation:`, {
       serverTime: now.toISOString(),
       serverTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,

@@ -395,7 +395,13 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
       let savedMessageId = userMessage.id
       if (!isAnonymous && user && currentSession) {
         try {
-          console.log('[ChatInterface] Saving user message to database...')
+          console.log('[ChatInterface] Saving user message to database...', {
+            sessionId: currentSession.id,
+            userId: user.id,
+            contentLength: text.length,
+            duration: messageDuration,
+          })
+          
           const { data: savedMessage, error: saveError } = await supabase
             .from('messages')
             .insert({
@@ -408,14 +414,54 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
             .single()
 
           if (saveError) {
-            console.error('[ChatInterface] Error saving message:', saveError)
+            console.error('[ChatInterface] Error saving message:', {
+              error: saveError,
+              code: saveError.code,
+              message: saveError.message,
+              details: saveError.details,
+              hint: saveError.hint,
+              sessionId: currentSession.id,
+              userId: user.id,
+            })
+            
+            // Check if it's an RLS error
+            if (saveError.code === '42501') {
+              console.error('[ChatInterface] RLS policy violation - user may not have permission to insert messages')
+              
+              // Try to verify session ownership
+              const { data: sessionCheck } = await supabase
+                .from('sessions')
+                .select('user_id')
+                .eq('id', currentSession.id)
+                .single()
+                
+              console.log('[ChatInterface] Session ownership check:', {
+                sessionId: currentSession.id,
+                sessionUserId: sessionCheck?.user_id,
+                currentUserId: user.id,
+                match: sessionCheck?.user_id === user.id,
+              })
+            }
           } else if (savedMessage) {
             savedMessageId = savedMessage.id
-            console.log('[ChatInterface] Message saved with ID:', savedMessageId)
+            console.log('[ChatInterface] Message saved successfully:', {
+              messageId: savedMessageId,
+              sessionId: savedMessage.session_id,
+              speaker: savedMessage.speaker,
+            })
+          } else {
+            console.error('[ChatInterface] No message returned after insert')
           }
         } catch (error) {
           console.error('[ChatInterface] Exception saving message:', error)
         }
+      } else {
+        console.log('[ChatInterface] Skipping message save:', {
+          isAnonymous,
+          hasUser: !!user,
+          hasSession: !!currentSession,
+          sessionId: currentSession?.id,
+        })
       }
 
       // Start parallel API calls

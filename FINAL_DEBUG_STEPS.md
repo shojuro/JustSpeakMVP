@@ -1,22 +1,26 @@
- # Final Debug Steps for Analyze-Errors Issue
+# Final Debug Steps for Analyze-Errors Issue
 
 ## What We've Done
+
 1. Added service role client with fallback to regular client
 2. Created endpoints to help debug the issue
 
 ## Debug Steps After Deployment (1-2 minutes)
 
 ### 1. Check if Tables Exist
+
 Visit: https://just-speak-mvp-7uhu.vercel.app/api/check-tables
 
 This will show if the `corrections` and `user_progress` tables exist in your database.
 
 ### 2. Check OpenAI Configuration
+
 Visit: https://just-speak-mvp-7uhu.vercel.app/api/debug-openai
 
 This will show if OpenAI API key is configured.
 
 ### 3. Check Vercel Function Logs
+
 1. Go to Vercel dashboard
 2. Click on your project
 3. Go to "Functions" tab
@@ -26,6 +30,7 @@ This will show if OpenAI API key is configured.
 ## Most Likely Issues
 
 ### Issue 1: Tables Don't Exist
+
 If the check-tables endpoint shows the tables don't exist, you need to run migration 002:
 
 1. Go to Supabase Dashboard → SQL Editor
@@ -33,13 +38,16 @@ If the check-tables endpoint shows the tables don't exist, you need to run migra
 3. Run it in SQL Editor
 
 ### Issue 2: RLS Policies Blocking Inserts
+
 If tables exist but inserts are failing:
 
 1. Option A: Add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables
 2. Option B: Run migration 003 to fix RLS policies
 
 ### Issue 3: OpenAI Not Configured
+
 If debug-openai shows the API key is not configured:
+
 - Add OPENAI_API_KEY to Vercel environment variables
 
 ## Quick Fix for RLS (if needed)
@@ -68,6 +76,7 @@ CREATE POLICY "Users can update own progress" ON public.user_progress
 ```
 
 ## Next Steps
+
 1. Wait for deployment to complete
 2. Check the debug endpoints
 3. Based on results, either:

@@ -7,7 +7,7 @@ const getServiceSupabase = () => {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Missing Supabase environment variables')
   }
-  
+
   return createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -68,11 +68,13 @@ export async function GET(request: NextRequest) {
         success: !error,
         data: data || [],
         count: data?.length || 0,
-        error: error ? {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-        } : null,
+        error: error
+          ? {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+            }
+          : null,
       }
 
       console.log(`[debug-progress][${requestId}] Regular client result:`, {
@@ -113,11 +115,13 @@ export async function GET(request: NextRequest) {
         success: !error,
         data: data || [],
         count: data?.length || 0,
-        error: error ? {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-        } : null,
+        error: error
+          ? {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+            }
+          : null,
       }
 
       console.log(`[debug-progress][${requestId}] Service client result:`, {
@@ -128,12 +132,15 @@ export async function GET(request: NextRequest) {
 
       // Add summary statistics if data exists
       if (data && data.length > 0) {
-        const totalSpeakingTime = data.reduce((sum, record) => sum + (record.total_speaking_time || 0), 0)
+        const totalSpeakingTime = data.reduce(
+          (sum, record) => sum + (record.total_speaking_time || 0),
+          0
+        )
         const totalMessages = data.reduce((sum, record) => sum + (record.total_messages || 0), 0)
-        
+
         const allErrorCounts: Record<string, number> = {}
-        data.forEach(record => {
-          const errorCounts = record.error_counts as Record<string, number> || {}
+        data.forEach((record) => {
+          const errorCounts = (record.error_counts as Record<string, number>) || {}
           Object.entries(errorCounts).forEach(([type, count]) => {
             allErrorCounts[type] = (allErrorCounts[type] || 0) + count
           })
@@ -145,7 +152,7 @@ export async function GET(request: NextRequest) {
           totalMessages,
           errorCounts: allErrorCounts,
           averageSpeakingTimePerDay: Math.round(totalSpeakingTime / data.length),
-          datesWithData: data.map(record => record.date),
+          datesWithData: data.map((record) => record.date),
         }
       }
     } catch (error) {
@@ -163,7 +170,8 @@ export async function GET(request: NextRequest) {
       comparison: {
         regularClientWorked: results.regularClient.success,
         serviceClientWorked: results.serviceClient.success,
-        dataMatches: JSON.stringify(results.regularClient.data) === JSON.stringify(results.serviceClient.data),
+        dataMatches:
+          JSON.stringify(results.regularClient.data) === JSON.stringify(results.serviceClient.data),
       },
     }
 
@@ -172,10 +180,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(results)
   } catch (error) {
     console.error(`[debug-progress][${requestId}] API error:`, error)
-    return NextResponse.json({
-      error: 'Failed to debug user progress',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      requestId,
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Failed to debug user progress',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        requestId,
+      },
+      { status: 500 }
+    )
   }
 }

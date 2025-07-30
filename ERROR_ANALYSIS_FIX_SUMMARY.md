@@ -3,11 +3,14 @@
 ## Date: 2025-07-30
 
 ### Issues Fixed
+
 1. Dashboard showing 0:00 speaking time and 0 messages despite active conversations
 2. Feedback page showing "No significant errors found" despite grammatical errors in transcripts
 
 ### Root Cause
+
 The `analyze-errors` API endpoint was never being called from ChatInterface.tsx. This API is responsible for:
+
 - Analyzing user messages for ESL errors using GPT-4
 - Saving corrections to the database
 - Updating user progress with speaking time and error counts
@@ -15,17 +18,20 @@ The `analyze-errors` API endpoint was never being called from ChatInterface.tsx.
 ### Fixes Implemented
 
 #### 1. Added analyze-errors API call (src/components/chat/ChatInterface.tsx)
+
 - Added API call after user message is saved but before AI response
 - Sends messageId, userId, sessionId, content, and duration
 - Logs analysis results (error count and primary errors)
 - Handles failures gracefully without blocking chat flow
 
 #### 2. Fixed .single() error in analyze-errors (src/app/api/analyze-errors/route.ts)
+
 - Changed `.single()` to `.maybeSingle()` on line 156
 - Prevents errors when no user_progress record exists for today
 - Allows first-time daily usage to work correctly
 
 #### 3. Removed redundant user-progress call (src/components/chat/ChatInterface.tsx)
+
 - Removed separate user-progress API call since analyze-errors handles it
 - Prevents duplicate progress updates
 - Simplifies the flow
@@ -60,6 +66,7 @@ The `analyze-errors` API endpoint was never being called from ChatInterface.tsx.
 ### Technical Details
 
 The analyze-errors API uses:
+
 - GPT-4 for error analysis
 - Focus on top 4 ESL error types:
   - Word Order

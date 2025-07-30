@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   if (process.env.NODE_ENV === 'production' && debugKey !== 'debug-2025') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  
+
   return NextResponse.json({
     status: 'ok',
     timestamp: new Date().toISOString(),

@@ -3,10 +3,13 @@
 ## Date: 2025-07-30
 
 ### Issue Fixed
+
 "Failed to process audio. Please try again." error occurring only for authenticated users when using push-to-talk feature.
 
 ### Root Cause
+
 The issue was caused by a race condition where:
+
 1. Authenticated users need a session before recording
 2. Session creation/validation was happening asynchronously
 3. Recording could start before session was ready
@@ -15,17 +18,20 @@ The issue was caused by a race condition where:
 ### Fixes Implemented
 
 #### 1. Enhanced Error Logging (src/hooks/useSpeechRecording.ts)
+
 - Added detailed response status and headers logging
 - Enhanced error object logging with blob details
 - More descriptive error messages for users
 
 #### 2. Session Readiness Check (src/components/chat/ChatInterface.tsx)
+
 - Added `sessionLoading` state to track session initialization
 - Prevent recording until session is ready for authenticated users
 - Disable speak button while session is loading
 - Show helpful message if user tries to record before session is ready
 
 #### 3. Retry Logic for Transcription (src/hooks/useSpeechRecording.ts)
+
 - Implemented automatic retry (up to 2 attempts) for network failures
 - Added 1-second delay between retries
 - Retry only for transient errors (network, timeout, fetch failures)

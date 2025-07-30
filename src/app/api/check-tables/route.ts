@@ -4,19 +4,19 @@ import { createClient } from '@/lib/supabase/server'
 export async function GET() {
   try {
     const supabase = await createClient()
-    
+
     // Check if corrections table exists
     const { data: corrections, error: correctionsError } = await supabase
       .from('corrections')
       .select('id')
       .limit(1)
-    
+
     // Check if user_progress table exists
     const { data: progress, error: progressError } = await supabase
       .from('user_progress')
       .select('id')
       .limit(1)
-    
+
     return NextResponse.json({
       tables: {
         corrections: {

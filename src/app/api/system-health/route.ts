@@ -8,7 +8,7 @@ const getServiceSupabase = () => {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Missing Supabase environment variables')
   }
-  
+
   return createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   // Check environment variables
   try {
     console.log(`[system-health][${requestId}] Checking environment variables...`)
-    
+
     const envCheck = {
       supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -56,8 +56,11 @@ export async function GET(request: NextRequest) {
     const projectId = urlMatch ? urlMatch[1] : 'unknown'
 
     // Check if service role key matches project
-    const serviceKeyData = process.env.SUPABASE_SERVICE_ROLE_KEY ? 
-      JSON.parse(Buffer.from(process.env.SUPABASE_SERVICE_ROLE_KEY.split('.')[1], 'base64').toString()) : null
+    const serviceKeyData = process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? JSON.parse(
+          Buffer.from(process.env.SUPABASE_SERVICE_ROLE_KEY.split('.')[1], 'base64').toString()
+        )
+      : null
     const serviceKeyProjectId = serviceKeyData?.ref || 'unknown'
 
     health.checks.environment = {
@@ -86,9 +89,9 @@ export async function GET(request: NextRequest) {
   // Check database connectivity and tables
   try {
     console.log(`[system-health][${requestId}] Checking database...`)
-    
+
     const supabase = await createClient()
-    
+
     // Check tables exist
     const tables = ['profiles', 'sessions', 'messages', 'corrections', 'user_progress']
     const tableChecks: Record<string, any> = {}
@@ -106,7 +109,7 @@ export async function GET(request: NextRequest) {
       status: 'success',
       details: {
         tables: tableChecks,
-        allTablesExist: Object.values(tableChecks).every(check => check.exists),
+        allTablesExist: Object.values(tableChecks).every((check) => check.exists),
       },
     }
 
@@ -125,7 +128,7 @@ export async function GET(request: NextRequest) {
   // Check OpenAI connectivity
   try {
     console.log(`[system-health][${requestId}] Checking OpenAI API...`)
-    
+
     if (process.env.OPENAI_API_KEY) {
       const openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
@@ -165,9 +168,12 @@ export async function GET(request: NextRequest) {
   // Check auth functionality
   try {
     console.log(`[system-health][${requestId}] Checking auth...`)
-    
+
     const supabase = await createClient()
-    const { data: { user }, error } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
 
     health.checks.auth = {
       status: 'success',
@@ -193,15 +199,12 @@ export async function GET(request: NextRequest) {
   // Check service role client
   try {
     console.log(`[system-health][${requestId}] Checking service role client...`)
-    
+
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
       const serviceSupabase = getServiceSupabase()
-      
+
       // Test query with service role
-      const { data, error } = await serviceSupabase
-        .from('user_progress')
-        .select('id')
-        .limit(1)
+      const { data, error } = await serviceSupabase.from('user_progress').select('id').limit(1)
 
       health.checks.serviceRole = {
         status: 'success',
@@ -240,11 +243,12 @@ export async function GET(request: NextRequest) {
 
   // Add recommendations
   health.recommendations = []
-  
+
   if (health.checks.environment.details?.projectMatch === false) {
     health.recommendations.push({
       severity: 'critical',
-      message: 'Service role key does not match Supabase project. Update SUPABASE_SERVICE_ROLE_KEY.',
+      message:
+        'Service role key does not match Supabase project. Update SUPABASE_SERVICE_ROLE_KEY.',
     })
   }
 
@@ -252,7 +256,7 @@ export async function GET(request: NextRequest) {
     const missingTables = Object.entries(health.checks.database.details?.tables || {})
       .filter(([_, check]: [string, any]) => !check.exists)
       .map(([table]) => table)
-    
+
     health.recommendations.push({
       severity: 'critical',
       message: `Missing database tables: ${missingTables.join(', ')}. Run migrations.`,

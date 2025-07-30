@@ -17,11 +17,13 @@ If they don't exist, run migration 002 first!
 ## Running Migration 002 (if needed)
 
 ### Option 1: Supabase Dashboard
+
 1. Go to SQL Editor in Supabase Dashboard
 2. Copy contents of `supabase/migrations/002_esl_corrections.sql`
 3. Paste and run
 
 ### Option 2: Supabase CLI
+
 ```bash
 supabase db push --db-url "postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres"
 ```

@@ -22,7 +22,7 @@ function DashboardContent() {
   const { user } = useAuth()
   const searchParams = useSearchParams()
   const isDebugMode = searchParams.get('debug') === 'true'
-  
+
   const [todayProgress, setTodayProgress] = useState<UserProgress | null>(null)
   const [weekProgress, setWeekProgress] = useState<UserProgress[]>([])
   const [recentCorrections, setRecentCorrections] = useState<Correction[]>([])
@@ -54,13 +54,13 @@ function DashboardContent() {
       const utcMonth = String(now.getUTCMonth() + 1).padStart(2, '0')
       const utcDay = String(now.getUTCDate()).padStart(2, '0')
       const today = `${utcYear}-${utcMonth}-${utcDay}`
-      
+
       const weekAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       const weekAgoYear = weekAgoDate.getUTCFullYear()
       const weekAgoMonth = String(weekAgoDate.getUTCMonth() + 1).padStart(2, '0')
       const weekAgoDay = String(weekAgoDate.getUTCDate()).padStart(2, '0')
       const weekAgo = `${weekAgoYear}-${weekAgoMonth}-${weekAgoDay}`
-      
+
       console.log('[Dashboard] Date calculation:', {
         clientTime: now.toISOString(),
         clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -75,7 +75,7 @@ function DashboardContent() {
       if (isDebugMode) {
         try {
           console.log('[Dashboard Debug] Fetching debug data...')
-          
+
           // Fetch progress debug info
           const progressDebugResponse = await fetch(`/api/debug-progress?userId=${user.id}`)
           if (progressDebugResponse.ok) {
@@ -95,7 +95,9 @@ function DashboardContent() {
           }
         } catch (error) {
           console.error('[Dashboard Debug] Error fetching debug data:', error)
-          newDebugInfo.errors.push(`Debug fetch error: ${error instanceof Error ? error.message : 'Unknown'}`)
+          newDebugInfo.errors.push(
+            `Debug fetch error: ${error instanceof Error ? error.message : 'Unknown'}`
+          )
         }
       }
 
@@ -109,10 +111,10 @@ function DashboardContent() {
         .maybeSingle()
 
       if (todayError) {
-        console.error('[Dashboard] Error loading today\'s progress:', todayError)
+        console.error("[Dashboard] Error loading today's progress:", todayError)
         newDebugInfo.errors.push(`Today's progress: ${todayError.message}`)
       } else {
-        console.log('[Dashboard] Today\'s progress:', todayData)
+        console.log("[Dashboard] Today's progress:", todayData)
         if (todayData) {
           setTodayProgress(todayData)
         }
@@ -122,7 +124,7 @@ function DashboardContent() {
       console.log(`[Dashboard] Loading today's sessions for accurate speaking time...`)
       const todayStart = new Date(today + 'T00:00:00.000Z')
       const todayEnd = new Date(today + 'T23:59:59.999Z')
-      
+
       const { data: todaySessions, error: sessionsError } = await supabase
         .from('sessions')
         .select('id, total_speaking_time')
@@ -131,18 +133,19 @@ function DashboardContent() {
         .lte('created_at', todayEnd.toISOString())
 
       if (sessionsError) {
-        console.error('[Dashboard] Error loading today\'s sessions:', sessionsError)
+        console.error("[Dashboard] Error loading today's sessions:", sessionsError)
         newDebugInfo.errors.push(`Today's sessions: ${sessionsError.message}`)
       } else {
-        console.log('[Dashboard] Today\'s sessions:', todaySessions)
+        console.log("[Dashboard] Today's sessions:", todaySessions)
         // Calculate total speaking time from sessions
-        const totalSpeakingTime = todaySessions?.reduce((sum, session) => sum + (session.total_speaking_time || 0), 0) || 0
+        const totalSpeakingTime =
+          todaySessions?.reduce((sum, session) => sum + (session.total_speaking_time || 0), 0) || 0
         console.log('[Dashboard] Calculated total speaking time:', totalSpeakingTime)
-        
+
         // Load today's message count
         let messageCount = 0
         if (todaySessions && todaySessions.length > 0) {
-          const sessionIds = todaySessions.map(s => s.id)
+          const sessionIds = todaySessions.map((s) => s.id)
           const { count, error: messagesError } = await supabase
             .from('messages')
             .select('*', { count: 'exact', head: true })
@@ -156,7 +159,7 @@ function DashboardContent() {
             messageCount = count || 0
           }
         }
-        console.log('[Dashboard] Today\'s message count:', messageCount)
+        console.log("[Dashboard] Today's message count:", messageCount)
 
         // Update or create today's progress with accurate data
         if (todayData) {
@@ -218,7 +221,9 @@ function DashboardContent() {
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error)
-      newDebugInfo.errors.push(`General error: ${error instanceof Error ? error.message : 'Unknown'}`)
+      newDebugInfo.errors.push(
+        `General error: ${error instanceof Error ? error.message : 'Unknown'}`
+      )
     } finally {
       setLoading(false)
       if (isDebugMode) {
@@ -238,14 +243,17 @@ function DashboardContent() {
     const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
-    
+
     if (date.toDateString() === today.toDateString()) {
       return `Today at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
     } else if (date.toDateString() === yesterday.toDateString()) {
       return `Yesterday at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' at ' + 
-             date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      return (
+        date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+        ' at ' +
+        date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      )
     }
   }
 
@@ -364,10 +372,7 @@ function DashboardContent() {
                       View Feedback
                     </Link>
                     {!session.ended_at && (
-                      <Link
-                        href="/chat"
-                        className="text-sm text-success hover:underline"
-                      >
+                      <Link href="/chat" className="text-sm text-success hover:underline">
                         Continue
                       </Link>
                     )}
@@ -378,10 +383,7 @@ function DashboardContent() {
           ) : (
             <p className="text-sm text-text-secondary">No conversations yet. Start practicing!</p>
           )}
-          <Link
-            href="/feedback"
-            className="text-sm text-primary hover:underline mt-4 inline-block"
-          >
+          <Link href="/feedback" className="text-sm text-primary hover:underline mt-4 inline-block">
             View all conversations →
           </Link>
         </div>
@@ -459,7 +461,7 @@ function DashboardContent() {
         {isDebugMode && (
           <div className="bg-gray-900 text-gray-100 rounded-lg p-6 font-mono text-sm">
             <h2 className="text-lg font-semibold mb-4 text-yellow-400">Debug Information</h2>
-            
+
             {/* Debug Controls */}
             <div className="mb-4 flex gap-2">
               <button
@@ -492,7 +494,9 @@ function DashboardContent() {
                 <h3 className="text-red-400 font-semibold mb-2">Errors:</h3>
                 <ul className="list-disc list-inside">
                   {debugInfo.errors.map((error, index) => (
-                    <li key={index} className="text-red-300">{error}</li>
+                    <li key={index} className="text-red-300">
+                      {error}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -513,7 +517,9 @@ function DashboardContent() {
               <div className="mb-4">
                 <h3 className="text-green-400 font-semibold mb-2">Corrections Debug:</h3>
                 <div className="bg-gray-800 p-3 rounded overflow-auto max-h-96">
-                  <pre className="text-xs">{JSON.stringify(debugInfo.correctionsDebug, null, 2)}</pre>
+                  <pre className="text-xs">
+                    {JSON.stringify(debugInfo.correctionsDebug, null, 2)}
+                  </pre>
                 </div>
               </div>
             )}
@@ -522,14 +528,20 @@ function DashboardContent() {
             <div className="mb-4">
               <h3 className="text-blue-400 font-semibold mb-2">Current Dashboard Data:</h3>
               <div className="bg-gray-800 p-3 rounded overflow-auto max-h-96">
-                <pre className="text-xs">{JSON.stringify({
-                  todayProgress,
-                  weekProgressCount: weekProgress.length,
-                  recentCorrectionsCount: recentCorrections.length,
-                  recentSessionsCount: recentSessions.length,
-                  userId: user?.id,
-                  timestamp: debugInfo.timestamp,
-                }, null, 2)}</pre>
+                <pre className="text-xs">
+                  {JSON.stringify(
+                    {
+                      todayProgress,
+                      weekProgressCount: weekProgress.length,
+                      recentCorrectionsCount: recentCorrections.length,
+                      recentSessionsCount: recentSessions.length,
+                      userId: user?.id,
+                      timestamp: debugInfo.timestamp,
+                    },
+                    null,
+                    2
+                  )}
+                </pre>
               </div>
             </div>
           </div>
@@ -541,9 +553,13 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-bg-secondary flex items-center justify-center">
-      <div className="text-text-secondary">Loading dashboard...</div>
-    </div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-bg-secondary flex items-center justify-center">
+          <div className="text-text-secondary">Loading dashboard...</div>
+        </div>
+      }
+    >
       <DashboardContent />
     </Suspense>
   )

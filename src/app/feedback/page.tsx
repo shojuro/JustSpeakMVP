@@ -50,14 +50,17 @@ const formatDateTime = (dateString: string) => {
   const today = new Date()
   const yesterday = new Date(today)
   yesterday.setDate(yesterday.getDate() - 1)
-  
+
   if (date.toDateString() === today.toDateString()) {
     return `Today at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
   } else if (date.toDateString() === yesterday.toDateString()) {
     return `Yesterday at ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
   } else {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + 
-           date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    return (
+      date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' at ' +
+      date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    )
   }
 }
 
@@ -80,7 +83,7 @@ export default function FeedbackPage() {
   useEffect(() => {
     if (user) {
       loadSessions()
-      
+
       // Refresh when page becomes visible
       const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
@@ -88,17 +91,17 @@ export default function FeedbackPage() {
           loadSessions()
         }
       }
-      
+
       document.addEventListener('visibilitychange', handleVisibilityChange)
-      
+
       // Also refresh when window gains focus
       const handleFocus = () => {
         console.log('[Feedback] Window focused, refreshing sessions')
         loadSessions()
       }
-      
+
       window.addEventListener('focus', handleFocus)
-      
+
       return () => {
         document.removeEventListener('visibilitychange', handleVisibilityChange)
         window.removeEventListener('focus', handleFocus)
@@ -127,10 +130,10 @@ export default function FeedbackPage() {
       if (data) {
         console.log('[Feedback] Loaded sessions:', data.length)
         setSessions(data)
-        
+
         // If we have a selected session, check if it's still in the new data
         if (selectedSession) {
-          const stillExists = data.find(s => s.id === selectedSession.id)
+          const stillExists = data.find((s) => s.id === selectedSession.id)
           if (stillExists) {
             // Update the selected session with fresh data
             setSelectedSession(stillExists)
@@ -354,7 +357,8 @@ export default function FeedbackPage() {
             <option value="">Choose a session...</option>
             {sessions.map((session) => (
               <option key={session.id} value={session.id}>
-                {formatDateTime(session.created_at)} - Duration: {formatDuration(session.total_speaking_time)}
+                {formatDateTime(session.created_at)} - Duration:{' '}
+                {formatDuration(session.total_speaking_time)}
               </option>
             ))}
           </select>

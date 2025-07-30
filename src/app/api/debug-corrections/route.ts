@@ -7,7 +7,7 @@ const getServiceSupabase = () => {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Missing Supabase environment variables')
   }
-  
+
   return createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -32,7 +32,12 @@ export async function GET(request: NextRequest) {
     const messageId = searchParams.get('messageId')
     const limit = parseInt(searchParams.get('limit') || '20', 10)
 
-    console.log(`[debug-corrections][${requestId}] Parameters:`, { userId, sessionId, messageId, limit })
+    console.log(`[debug-corrections][${requestId}] Parameters:`, {
+      userId,
+      sessionId,
+      messageId,
+      limit,
+    })
 
     // Try both clients to see which one works
     const results: any = {
@@ -62,19 +67,19 @@ export async function GET(request: NextRequest) {
         query = query.eq('message_id', messageId)
       }
 
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(limit)
+      const { data, error } = await query.order('created_at', { ascending: false }).limit(limit)
 
       results.regularClient = {
         success: !error,
         data: data || [],
         count: data?.length || 0,
-        error: error ? {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-        } : null,
+        error: error
+          ? {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+            }
+          : null,
       }
 
       console.log(`[debug-corrections][${requestId}] Regular client result:`, {
@@ -108,19 +113,19 @@ export async function GET(request: NextRequest) {
         query = query.eq('message_id', messageId)
       }
 
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(limit)
+      const { data, error } = await query.order('created_at', { ascending: false }).limit(limit)
 
       results.serviceClient = {
         success: !error,
         data: data || [],
         count: data?.length || 0,
-        error: error ? {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-        } : null,
+        error: error
+          ? {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+            }
+          : null,
       }
 
       console.log(`[debug-corrections][${requestId}] Service client result:`, {
@@ -145,7 +150,7 @@ export async function GET(request: NextRequest) {
           totalErrors,
           averageErrorsPerMessage: totalErrors / data.length,
           errorTypeCounts,
-          recentCorrections: data.slice(0, 5).map(correction => ({
+          recentCorrections: data.slice(0, 5).map((correction) => ({
             id: correction.id,
             created_at: correction.created_at,
             original: correction.original_text?.substring(0, 50) + '...',
@@ -170,24 +175,24 @@ export async function GET(request: NextRequest) {
       comparison: {
         regularClientWorked: results.regularClient.success,
         serviceClientWorked: results.serviceClient.success,
-        dataMatches: JSON.stringify(results.regularClient.data) === JSON.stringify(results.serviceClient.data),
+        dataMatches:
+          JSON.stringify(results.regularClient.data) === JSON.stringify(results.serviceClient.data),
       },
     }
 
     // Check table existence
     try {
       const serviceSupabase = getServiceSupabase()
-      const { error: tableError } = await serviceSupabase
-        .from('corrections')
-        .select('id')
-        .limit(1)
+      const { error: tableError } = await serviceSupabase.from('corrections').select('id').limit(1)
 
       results.tableStatus = {
         exists: !tableError || tableError.code !== 'PGRST116',
-        error: tableError ? {
-          code: tableError.code,
-          message: tableError.message,
-        } : null,
+        error: tableError
+          ? {
+              code: tableError.code,
+              message: tableError.message,
+            }
+          : null,
       }
     } catch (error) {
       results.tableStatus = {
@@ -201,10 +206,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(results)
   } catch (error) {
     console.error(`[debug-corrections][${requestId}] API error:`, error)
-    return NextResponse.json({
-      error: 'Failed to debug corrections',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      requestId,
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Failed to debug corrections',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        requestId,
+      },
+      { status: 500 }
+    )
   }
 }

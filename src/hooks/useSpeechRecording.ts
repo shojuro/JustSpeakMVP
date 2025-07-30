@@ -17,7 +17,7 @@ export function useSpeechRecording() {
 
   const startRecording = useCallback(async () => {
     console.log('[Recording] Start requested, current state:', isRecording)
-    
+
     // Don't start if already recording
     if (isRecording) {
       console.log('[Recording] Already recording, ignoring start request')
@@ -273,7 +273,10 @@ export function useSpeechRecording() {
       })
 
       console.log('[Transcription] Response status:', response.status)
-      console.log('[Transcription] Response headers:', Object.fromEntries(response.headers.entries()))
+      console.log(
+        '[Transcription] Response headers:',
+        Object.fromEntries(response.headers.entries())
+      )
 
       const data = await response.json()
 
@@ -283,7 +286,7 @@ export function useSpeechRecording() {
           statusText: response.statusText,
           data: data,
           error: data.error,
-          details: data.details || 'No additional details'
+          details: data.details || 'No additional details',
         })
         throw new Error(data.error || `Transcription failed: ${response.status}`)
       }
@@ -303,16 +306,18 @@ export function useSpeechRecording() {
         response: error.response,
         blobSize: audioBlob.size,
         blobType: audioBlob.type,
-        retryCount
+        retryCount,
       })
 
       // Retry logic for transient failures
-      if (retryCount < MAX_RETRIES && 
-          (error.message.includes('network') || 
-           error.message.includes('timeout') ||
-           error.message.includes('fetch'))) {
+      if (
+        retryCount < MAX_RETRIES &&
+        (error.message.includes('network') ||
+          error.message.includes('timeout') ||
+          error.message.includes('fetch'))
+      ) {
         console.log(`[Transcription] Retrying... attempt ${retryCount + 1} of ${MAX_RETRIES}`)
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY))
         return transcribeAudio(audioBlob, retryCount + 1)
       }
 

@@ -3,20 +3,25 @@
 ## 🚨 Critical Issues Found
 
 ### 1. **Exposed API Keys in .env File**
+
 Your API keys are exposed in the .env file. These need to be rotated immediately:
+
 - OpenAI API Key
 - Supabase Service Role Key
 - ElevenLabs API Key
 
 **Action Required:**
+
 1. Rotate all API keys in their respective dashboards
 2. Update .env file with new keys
 3. Update Vercel environment variables
 
 ### 2. **Missing Database Tables**
+
 The `corrections` and `user_progress` tables required for the analyze-errors functionality may not exist in your database.
 
 ### 3. **RLS Policies Blocking Inserts**
+
 The current RLS policies prevent users from creating their own correction records.
 
 ## 🛠️ Step-by-Step Solution
@@ -142,11 +147,13 @@ CREATE POLICY IF NOT EXISTS "Users can update own progress" ON public.user_progr
 After deployment, test these endpoints:
 
 1. **Check Tables Exist:**
+
    ```
    https://your-app.vercel.app/api/check-tables
    ```
 
 2. **Check OpenAI Configuration:**
+
    ```
    https://your-app.vercel.app/api/debug-openai
    ```
@@ -160,6 +167,7 @@ After deployment, test these endpoints:
 ### Step 5: Monitor for Issues
 
 Check Vercel Function logs:
+
 1. Go to Vercel Dashboard
 2. Click on your project
 3. Go to "Functions" tab
@@ -187,6 +195,7 @@ Check Vercel Function logs:
 ## 📊 Expected Outcome
 
 After completing these steps:
+
 - ✅ Analyze-errors endpoint will work properly
 - ✅ ESL corrections will be saved to database
 - ✅ User progress will be tracked

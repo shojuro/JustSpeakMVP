@@ -30,6 +30,7 @@
 ### Changes Summary
 
 #### 1. `/src/app/api/user-progress/route.ts`
+
 ```typescript
 // Before
 .select()
@@ -41,6 +42,7 @@
 ```
 
 #### 2. `/src/app/dashboard/page.tsx`
+
 - Added `Session` type import
 - Added `recentSessions` state
 - Added `formatDateTime` function for user-friendly timestamps
@@ -51,10 +53,12 @@
   - Links to view feedback or continue
 
 #### 3. `/src/components/chat/ChatInterface.tsx`
+
 - Improved session cleanup logic to always end orphaned sessions
 - Prevents multiple active sessions per user
 
 #### 4. `/src/app/feedback/page.tsx`
+
 - Added `formatDateTime` and `formatDuration` functions
 - Updated session dropdown to show full timestamp and duration
 

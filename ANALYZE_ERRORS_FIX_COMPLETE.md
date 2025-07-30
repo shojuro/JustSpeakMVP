@@ -3,6 +3,7 @@
 ## Issue Fixed
 
 The analyze-errors API was returning 500 errors when trying to save corrections and user progress to the database. This was preventing:
+
 - Grammar corrections from being saved
 - User progress tracking
 - Dashboard from showing speaking time
@@ -15,11 +16,13 @@ The analyze-errors API was returning 500 errors when trying to save corrections 
 ## Solutions Implemented
 
 ### 1. Immediate Fix - Service Role Client
+
 - Updated `analyze-errors` API to use Supabase service role client
 - This bypasses RLS entirely and ensures database operations work
 - **This fix will work immediately upon deployment**
 
 ### 2. Long-term Fix - RLS Policies
+
 - Created migration 003 to fix RLS policies
 - Allows users to create and update their own corrections and progress
 - Ensures proper security model
@@ -38,6 +41,7 @@ The analyze-errors API was returning 500 errors when trying to save corrections 
 ## Deployment Steps
 
 1. **Deploy to Vercel** (This will fix the issue immediately):
+
    ```bash
    git add -A
    git commit -m "fix: use service role for analyze-errors API to bypass RLS"

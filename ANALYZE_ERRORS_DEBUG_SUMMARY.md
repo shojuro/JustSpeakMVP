@@ -3,17 +3,20 @@
 ## Changes Made (2025-07-30)
 
 ### 1. Enhanced Logging in analyze-errors API
+
 - Already had comprehensive logging throughout the flow
 - Added OpenAI API key validation logging (lines 127-128)
 - Added try-catch specifically for OpenAI API calls (lines 131-165)
 - Returns more detailed error info if OpenAI fails
 
 ### 2. Created Debug Endpoint
+
 - `/api/debug-openai` - Checks if OpenAI API key is configured
 - Safe endpoint that doesn't expose the actual key
 - Shows: configured status, key length, if it starts with 'sk-'
 
 ### 3. Verified Logging in ChatInterface
+
 - Already has detailed logging for analyze-errors call
 - Logs payload, response status, and results
 - Proper error handling with stack traces
@@ -21,12 +24,14 @@
 ## How to Debug the Issue
 
 1. **Check OpenAI API Key**:
+
    ```bash
    curl http://localhost:3000/api/debug-openai
    ```
 
 2. **Monitor Console Logs**:
    When a user speaks, you should see:
+
    ```
    [ChatInterface] Starting error analysis for message: {...}
    [ChatInterface] Calling analyze-errors API with payload: {...}
@@ -43,6 +48,7 @@
 ## Next Steps
 
 1. **Run the app and test**:
+
    ```bash
    npm run dev
    ```
