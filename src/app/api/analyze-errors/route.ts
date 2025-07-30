@@ -205,14 +205,19 @@ Format as JSON:
     console.log('[analyze-errors] Error types found:', errorTypes)
     console.log('[analyze-errors] Error counts:', errorCounts)
     
-    // Get service role client for database operations
-    let serviceSupabase
+    // Get service role client for database operations (with fallback)
+    let dbClient = supabase // Default to regular client
     try {
-      serviceSupabase = getServiceSupabase()
-      console.log('[analyze-errors] Created service role client for database operations')
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        dbClient = getServiceSupabase()
+        console.log('[analyze-errors] Using service role client for database operations')
+      } else {
+        console.log('[analyze-errors] Service role key not configured, using regular client')
+        console.log('[analyze-errors] Note: This may fail due to RLS policies')
+      }
     } catch (error) {
-      console.error('[analyze-errors] Failed to create service role client:', error)
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+      console.error('[analyze-errors] Failed to create service role client, using regular client:', error)
+      // Continue with regular client
     }
     
     const correctionData = {
@@ -232,7 +237,7 @@ Format as JSON:
     
     console.log('[analyze-errors] Correction data to insert:', correctionData)
     
-    const { data: correction, error: correctionError } = await serviceSupabase
+    const { data: correction, error: correctionError } = await dbClient
       .from('corrections')
       .insert(correctionData)
       .select()
@@ -256,7 +261,7 @@ Format as JSON:
 
     // Get existing progress for today using service role client
     console.log('[analyze-errors] Checking for existing progress...')
-    const { data: existingProgress, error: progressFetchError } = await serviceSupabase
+    const { data: existingProgress, error: progressFetchError } = await dbClient
       .from('user_progress')
       .select('*')
       .eq('user_id', userId)
@@ -287,7 +292,7 @@ Format as JSON:
       
       console.log('[analyze-errors] Progress update data:', updateData)
 
-      const { error: updateError } = await serviceSupabase
+      const { error: updateError } = await dbClient
         .from('user_progress')
         .update(updateData)
         .eq('id', existingProgress.id)
@@ -312,7 +317,7 @@ Format as JSON:
       
       console.log('[analyze-errors] Progress insert data:', insertData)
       
-      const { error: insertError } = await serviceSupabase
+      const { error: insertError } = await dbClient
         .from('user_progress')
         .insert(insertData)
       
