@@ -19,7 +19,7 @@ interface DebugInfo {
 }
 
 function DashboardContent() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const searchParams = useSearchParams()
   const isDebugMode = searchParams.get('debug') === 'true'
 
@@ -307,9 +307,20 @@ function DashboardContent() {
             <h1 className="text-xl font-semibold text-primary">Speaking Progress Dashboard</h1>
             <p className="text-sm text-text-secondary">Track your English improvement</p>
           </div>
-          <Link href="/chat" className="btn-primary">
-            Continue Practice
-          </Link>
+          <div className="flex gap-3">
+            <Link href="/chat" className="btn-primary">
+              Continue Practice
+            </Link>
+            <button
+              onClick={async () => {
+                await signOut()
+                window.location.href = '/auth/login'
+              }}
+              className="px-4 py-2 text-sm font-medium text-text-secondary bg-white border border-border-light rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 

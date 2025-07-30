@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
-import { supabase } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase/client'
 import MessageBubble from './MessageBubble'
 import SpeakButton from './SpeakButton'
 import SpeakingTimer from './SpeakingTimer'
@@ -17,7 +17,7 @@ interface ChatInterfaceProps {
 }
 
 export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProps) {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -830,6 +830,15 @@ export default function ChatInterface({ isAnonymous = false }: ChatInterfaceProp
                 <Link href="/dashboard" className="text-sm text-primary hover:text-blue-700">
                   View Progress
                 </Link>
+                <button
+                  onClick={async () => {
+                    await signOut()
+                    window.location.href = '/auth/login'
+                  }}
+                  className="text-sm text-text-secondary hover:text-text-primary"
+                >
+                  Logout
+                </button>
                 <button
                   onClick={async () => {
                     console.log('[ChatInterface] Manual refresh requested')
