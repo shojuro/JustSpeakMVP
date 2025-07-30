@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
         const errorTypeCounts: Record<string, number> = {}
         const totalErrors = data.reduce((sum, correction) => {
           const errorTypes = correction.error_types || []
-          errorTypes.forEach(type => {
+          errorTypes.forEach((type: string) => {
             errorTypeCounts[type] = (errorTypeCounts[type] || 0) + 1
           })
           return sum + correction.error_count

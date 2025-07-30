@@ -451,10 +451,10 @@ Format as JSON:
         operations: debugInfo.operations,
         summary: {
           correctionSaved: !!correction?.id,
-          progressUpdated: debugInfo.operations.some(op => 
+          progressUpdated: debugInfo.operations.some((op: any) => 
             (op.operation === 'update_progress' || op.operation === 'insert_progress') && op.success
           ),
-          errors: debugInfo.operations.filter(op => !op.success),
+          errors: debugInfo.operations.filter((op: any) => !op.success),
         },
       } : undefined,
     }
@@ -464,8 +464,8 @@ Format as JSON:
       requestId,
       clientType,
       operationCount: debugInfo.operations.length,
-      successfulOps: debugInfo.operations.filter(op => op.success).length,
-      failedOps: debugInfo.operations.filter(op => !op.success).length,
+      successfulOps: debugInfo.operations.filter((op: any) => op.success).length,
+      failedOps: debugInfo.operations.filter((op: any) => !op.success).length,
     })
     
     return NextResponse.json(response)

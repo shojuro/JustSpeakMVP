@@ -250,7 +250,7 @@ export async function GET(request: NextRequest) {
 
   if (!health.checks.database.details?.allTablesExist) {
     const missingTables = Object.entries(health.checks.database.details?.tables || {})
-      .filter(([_, check]) => !check.exists)
+      .filter(([_, check]: [string, any]) => !check.exists)
       .map(([table]) => table)
     
     health.recommendations.push({
