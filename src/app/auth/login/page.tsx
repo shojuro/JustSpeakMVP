@@ -12,6 +12,14 @@ export default function LoginPage() {
           <p className="text-text-secondary">Practice speaking English with confidence</p>
         </div>
         <LoginForm />
+        <div className="text-center mt-4">
+          <Link 
+            href="/" 
+            className="text-sm text-primary hover:text-secondary transition-colors"
+          >
+            ← Back to homepage
+          </Link>
+        </div>
       </div>
     </main>
   )

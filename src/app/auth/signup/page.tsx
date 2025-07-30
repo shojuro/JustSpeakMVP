@@ -12,6 +12,14 @@ export default function SignupPage() {
           <p className="text-text-secondary">Start your speaking journey today</p>
         </div>
         <SignupForm />
+        <div className="text-center mt-4">
+          <Link 
+            href="/" 
+            className="text-sm text-primary hover:text-secondary transition-colors"
+          >
+            ← Back to homepage
+          </Link>
+        </div>
       </div>
     </main>
   )
