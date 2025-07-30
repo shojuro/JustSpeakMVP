@@ -30,9 +30,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 })
     }
 
+    // Log audio file details before validation
+    console.log('[Speech-to-text] Audio file details:', {
+      name: audioFile.name,
+      size: audioFile.size,
+      type: audioFile.type,
+      lastModified: audioFile.lastModified,
+    })
+
+    // Read first few bytes to debug
+    try {
+      const buffer = await audioFile.slice(0, 12).arrayBuffer()
+      const bytes = new Uint8Array(buffer)
+      console.log('[Speech-to-text] First 12 bytes:', 
+        Array.from(bytes).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')
+      )
+    } catch (e) {
+      console.error('[Speech-to-text] Error reading file bytes:', e)
+    }
+
     // Validate the audio file
     const validation = await validateAudioFile(audioFile)
     if (!validation.valid) {
+      console.error('[Speech-to-text] Validation failed:', validation)
       // Log file validation failure
       logSecurityViolation(SecurityEventType.FILE_VALIDATION_FAILURE, request, {
         fileName: sanitizeFileName(audioFile.name),

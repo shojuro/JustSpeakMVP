@@ -14,6 +14,8 @@ export function useSpeechRecording() {
   const chunksRef = useRef<Blob[]>([])
   const startTimeRef = useRef<number>(0)
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const recordingStartTime = useRef<number>(0)
+  const dataRequestIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const startRecording = useCallback(async () => {
     console.log('[Recording] Start requested, current state:', isRecording)
@@ -24,11 +26,21 @@ export function useSpeechRecording() {
       return
     }
 
-    // Reset state
+    // Reset state completely
     setError(null)
     setTranscript('')
     setDuration(0)
     chunksRef.current = []
+    
+    // Clear any existing intervals
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current)
+      durationIntervalRef.current = null
+    }
+    if (dataRequestIntervalRef.current) {
+      clearInterval(dataRequestIntervalRef.current)
+      dataRequestIntervalRef.current = null
+    }
 
     try {
       console.log('[Recording] Requesting microphone access...')
@@ -94,13 +106,20 @@ export function useSpeechRecording() {
         console.log('[Recording] Event data type:', event.data?.type || 'unknown')
 
         if (event.data && event.data.size > 0) {
-          chunksRef.current.push(event.data)
-          console.log('[Recording] Data chunk received and stored')
-          console.log('[Recording] Total chunks collected:', chunksRef.current.length)
-          console.log(
-            '[Recording] Chunk sizes:',
-            chunksRef.current.map((c) => c.size)
-          )
+          // Limit total chunks to prevent memory issues
+          if (chunksRef.current.length < 500) { // Max ~1MB of chunks
+            chunksRef.current.push(event.data)
+            console.log('[Recording] Data chunk received and stored')
+            console.log('[Recording] Total chunks collected:', chunksRef.current.length)
+            if (chunksRef.current.length <= 10) {
+              console.log(
+                '[Recording] Chunk sizes:',
+                chunksRef.current.map((c) => c.size)
+              )
+            }
+          } else {
+            console.warn('[Recording] Maximum chunks reached, ignoring additional data')
+          }
         } else {
           console.warn('[Recording] Empty data chunk received')
         }
@@ -121,6 +140,7 @@ export function useSpeechRecording() {
           console.log('[Recording] Blob created successfully')
           console.log('[Recording] Blob size:', audioBlob.size)
           console.log('[Recording] Blob type:', audioBlob.type)
+          console.log('[Recording] Duration:', (Date.now() - recordingStartTime.current) / 1000, 'seconds')
 
           // Stop tracks after creating blob
           if (streamRef.current) {
@@ -156,34 +176,21 @@ export function useSpeechRecording() {
       }
 
       // Force data collection by requesting data before starting
-      console.log('[Recording] Starting MediaRecorder with 100ms timeslice...')
+      console.log('[Recording] Starting MediaRecorder with 1000ms timeslice...')
 
-      // Start recording with shorter timeslice for more frequent data collection
-      mediaRecorder.start(100) // Capture data every 100ms
+      // Start recording with reasonable timeslice to prevent excessive chunks
+      mediaRecorder.start(1000) // Capture data every 1 second
       setIsRecording(true)
 
       // Start duration tracking
       startTimeRef.current = Date.now()
+      recordingStartTime.current = Date.now()
       durationIntervalRef.current = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
         setDuration(elapsed)
       }, 100)
 
-      // Periodically request data to ensure collection
-      const dataRequestInterval = setInterval(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-          console.log('[Recording] Periodic data request...')
-          try {
-            mediaRecorderRef.current.requestData()
-          } catch (e) {
-            console.error('[Recording] Error in periodic data request:', e)
-          }
-        } else {
-          clearInterval(dataRequestInterval)
-        }
-      }, 500) // Request data every 500ms
-
-      console.log('[Recording] Started successfully with periodic data collection')
+      console.log('[Recording] Started successfully')
     } catch (error: any) {
       console.error('[Recording] Failed to start:', error)
 
@@ -209,14 +216,18 @@ export function useSpeechRecording() {
     console.log('[Recording] Current MediaRecorder state:', mediaRecorderRef.current?.state)
     console.log('[Recording] Current chunks count:', chunksRef.current.length)
 
-    // Check minimum duration (0.5 seconds)
+    // Track recording duration for transcription
     const recordingDuration = (Date.now() - startTimeRef.current) / 1000
     console.log('[Recording] Recording duration:', recordingDuration, 'seconds')
 
-    // Clear duration interval
+    // Clear all intervals
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current)
       durationIntervalRef.current = null
+    }
+    if (dataRequestIntervalRef.current) {
+      clearInterval(dataRequestIntervalRef.current)
+      dataRequestIntervalRef.current = null
     }
 
     // Stop media recorder if it exists and is recording
@@ -266,6 +277,12 @@ export function useSpeechRecording() {
 
       const formData = new FormData()
       formData.append('audio', audioBlob, 'recording.webm')
+      
+      console.log('[Transcription] Sending audio to API:', {
+        blobSize: audioBlob.size,
+        blobType: audioBlob.type,
+        fileName: 'recording.webm',
+      })
 
       const response = await apiFetch('/api/speech-to-text', {
         method: 'POST',
@@ -333,6 +350,10 @@ export function useSpeechRecording() {
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current)
       durationIntervalRef.current = null
+    }
+    if (dataRequestIntervalRef.current) {
+      clearInterval(dataRequestIntervalRef.current)
+      dataRequestIntervalRef.current = null
     }
 
     if (mediaRecorderRef.current) {
